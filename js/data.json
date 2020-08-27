@@ -24,7 +24,7 @@
     {
       "data": {
         "id": "router",
-        "text": "",
+        "text": "router",
         "shape": "star",
         "parent": "router$"
       }
@@ -41,6 +41,14 @@
       "data": {
         "id": "router.m2",
         "text": "m2",
+        "shape": "round-octagon",
+        "parent": "router$"
+      }
+    },
+    {
+      "data": {
+        "id": "router.m3",
+        "text": "m3",
         "shape": "round-octagon",
         "parent": "router$"
       }
@@ -89,6 +97,12 @@
       "data": {
         "source": "router",
         "target": "router.m2"
+      }
+    },
+    {
+      "data": {
+        "source": "router",
+        "target": "router.m3"
       }
     },
     {

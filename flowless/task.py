@@ -3,6 +3,7 @@ from flowless.base import MLTaskSpecBase, resource_params
 
 class MLTaskSpec(MLTaskSpecBase):
     kind = 'task'
+    _default_class = None
     _dict_fields = ['kind', 'name', 'class_name', 'class_params', 'next'] + resource_params
 
     def __init__(self, name=None, class_name=None,
@@ -15,20 +16,23 @@ class MLTaskSpec(MLTaskSpecBase):
         self.url = url
         self.message_format = None
 
-    def _init_object(self, current_resource, namespace):
+    def _init_object(self, context, current_resource, namespace):
         if not self.class_name:
+            if self._default_class:
+                self._object = self._default_class(context, self, **self.class_params)
+                return
             raise ValueError(f'class_name is not defined for {self.name}')
+
         print(f'init class {self.class_name} in {self.name}')
         if self.class_name not in namespace:
             raise ValueError(f'state {self.name} init failed, class {self.class_name} not found')
-        self._object = namespace[self.class_name](**self.class_params)
+        self._object = namespace[self.class_name](context, self, **self.class_params)
 
-    def run(self, context, event, *args, **kwargs):
+    def run(self, event, *args, **kwargs):
         print(f'running state {self.fullname}')
         if not self._object:
             raise RuntimeError(f'state {self.name} run failed, class {self.class_name} not initialized')
-        context.state = self
-        return self._object.do(context, event)
+        return self._object.do(event)
 
 
 class MLModelSpec(MLTaskSpec):

@@ -1,9 +1,55 @@
+import concurrent
+
 from .task import MLTaskSpec
 from .base import TaskList
 
 
+class _DefaultRouterClass:
+    def __init__(self, context, state, **kwargs):
+        self.context = context
+        self.state = state
+        self.executor = kwargs.get('executor', None)
+
+    def _do_parallel(self, event):
+        results = []
+        children = self.state.get_children()
+        if self.executor == 'process':
+            executor_class = concurrent.futures.ProcessPoolExecutor
+        elif self.executor == 'thread':
+            executor_class = concurrent.futures.ThreadPoolExecutor
+        else:
+            raise ValueError(f'executor value can be "process" or "thread", not {self.executor}')
+        with executor_class() as executor:
+            futures = {executor.submit(child.run, event, 60): child for child in children}
+            for future in concurrent.futures.as_completed(futures):
+                child = futures[future]
+                try:
+                    data = future.result()
+                except Exception as exc:
+                    print('%r generated an exception: %s' % (child.fullname, exc))
+                else:
+                    results.append(data)
+        return results
+
+    def _do_sync(self, event):
+        resp = []
+        children = self.state.get_children()
+        for child in children:
+            print('***', child.fullname)
+            resp.append(child.run(event))
+        return resp
+
+    def do(self, event):
+        if self.executor:
+            results = self._do_parallel(event)
+        else:
+            results = self._do_sync(event)
+        return results
+
+
 class MLTaskRouter(MLTaskSpec):
     kind = 'router'
+    _default_class = _DefaultRouterClass
     _dict_fields = MLTaskSpec._dict_fields + ['routes', 'hide_routes', 'weight_table']
 
     def __init__(self, name=None, routes=None, class_name=None,
@@ -40,4 +86,3 @@ class MLTaskRouter(MLTaskSpec):
         else:
             self.add_route(route)
         return self
-

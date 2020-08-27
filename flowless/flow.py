@@ -54,7 +54,7 @@ class MLTaskFlow(MLTaskSpecBase):
     def state_objects(self):
         return self._states
 
-    def run(self, context, event, *args, **kwargs):
+    def run(self, event, *args, **kwargs):
         if not self.start_at:
             raise ValueError(f'flow {self.fullname} missing start_at')
 
@@ -66,27 +66,10 @@ class MLTaskFlow(MLTaskSpecBase):
             if next not in self._states.keys():
                 raise ValueError(f'flow {self.fullname} next state {next} doesnt exist in {self._states.keys()}')
             next_obj = self._states[next]
-            context.state = next_obj
             print(f'running {next_obj.fullname}')
-            event = next_obj.run(context, event, *args, **kwargs)
+            event = next_obj.run(event, *args, **kwargs)
             next = next_obj.next
         return event
-
-
-class MLTaskHost(MLTaskFlow):
-    kind = 'flowhost'
-    _dict_fields = MLTaskFlow._dict_fields + resource_params
-
-    def __init__(self, name=None, states=None, next=None,
-                 start_at=None, resource=None, url=None):
-        super().__init__(name, states, next=next, start_at=start_at)
-        self.resource = resource
-        self.transport = None
-        self.url = url
-        self.message_format = None
-
-    def is_internal(self):
-        return self.resource is not None
 
 
 class MLTaskRoot(MLTaskFlow):

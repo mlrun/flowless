@@ -1,13 +1,32 @@
-from flowless.base import _get_node_obj, _new_edge
-from flowless.flow import MLTaskHost
+from flowless.flow import MLTaskFlow
 from flowless.router import MLTaskRouter
 from flowless.task import MLTaskSpec, MLModelSpec, MLTaskEndpoint
 
 task_kinds = {'task': MLTaskSpec,
               'model': MLModelSpec,
               'router': MLTaskRouter,
-              'taskhost': MLTaskHost,
+              'subflow': MLTaskFlow,
               'endpoint': MLTaskEndpoint}
+
+default_shape = 'round-rectangle'
+
+
+def _get_node_obj(name=None, text=None, shape=None, parent=None):
+    if text is None:
+        text = name
+    data = {"id": name,
+            "text": text,
+            "shape": shape or default_shape}
+    if parent:
+        data['parent'] = parent
+    return {"data": data}
+
+
+def _new_edge(source, target, edges=None):
+    edges = edges or []
+    if source and target:
+        edges += [{"data": {"source": source, "target": target}}]
+    return edges
 
 
 def build_graph(step, nodes=[], edges=[], parent=None):
@@ -28,7 +47,7 @@ def build_graph(step, nodes=[], edges=[], parent=None):
         switch_name = step.fullname + '$'
         edges += _new_edge(switch_name, step.next)
         nodes.append(_get_node_obj(name=switch_name, text=step.name, parent=parent))
-        nodes.append(_get_node_obj(name=step.fullname, text='', shape='star', parent=switch_name))
+        nodes.append(_get_node_obj(name=step.fullname, text=step.class_name, shape='star', parent=switch_name))
         for route in step._routes.values():
             build_graph(route, nodes, edges, switch_name)
             edges += _new_edge(step.fullname, route.fullname)

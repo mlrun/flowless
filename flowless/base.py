@@ -6,25 +6,6 @@ from mlrun.model import ModelObj
 import flowless
 
 resource_params = ['resource', 'transport', 'message_format', 'url']
-default_shape = 'round-rectangle'
-
-
-def _get_node_obj(name=None, text=None, shape=None, parent=None):
-    if text is None:
-        text = name
-    data = {"id": name,
-            "text": text,
-            "shape": shape or default_shape}
-    if parent:
-        data['parent'] = parent
-    return {"data": data}
-
-
-def _new_edge(source, target, edges=None):
-    edges = edges or []
-    if source and target:
-        edges += [{"data": {"source": source, "target": target}}]
-    return edges
 
 
 class MLTaskSpecBase(ModelObj):
@@ -61,15 +42,15 @@ class MLTaskSpecBase(ModelObj):
         other._next_obj = self
         return self
 
-    def _init_object(self, current_resource, namespace):
+    def _init_object(self, context, current_resource, namespace):
         pass
 
-    def init_objects(self, current_resource, namespace, parent_resource=None):
+    def init_objects(self, context, current_resource, namespace, parent_resource=None):
         resource = getattr(self, 'resource', None) or parent_resource
         if current_resource in ['*', resource]:
-            self._init_object(current_resource, namespace)
+            self._init_object(context, current_resource, namespace)
         for child in self.get_children():
-            child.init_objects(current_resource, namespace, resource)
+            child.init_objects(context, current_resource, namespace, resource)
 
     @property
     def fullname(self):
@@ -78,7 +59,7 @@ class MLTaskSpecBase(ModelObj):
             name = '.'.join([self._parent.fullname, name])
         return name
 
-    def run(self, context, event, *args, **kwargs):
+    def run(self, event, *args, **kwargs):
         return event
 
 
