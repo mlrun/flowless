@@ -1,8 +1,9 @@
 import time
 from multiprocessing.dummy import freeze_support
+from pprint import pprint
 
 from flowless import MLModelSpec, MLTaskSpec, MLTaskRouter, MLTaskEndpoint, build_graph
-from flowless.flow import MLTaskRoot
+from flowless.flow import MLTaskRoot, MLTaskChoice
 
 
 class TaskRunContext:
@@ -38,13 +39,18 @@ class T2Class(BaseClass):
 m1 = MLModelSpec('m1', class_name='MClass', class_params={'z': 100})
 m2 = MLModelSpec('m2', class_name='MClass', class_params={'z': 200})
 m3 = MLModelSpec('m3', class_name='MClass', class_params={'z': 300})
+m4 = MLModelSpec('m4', class_name='MClass', class_params={'z': 300})
 
 p = MLTaskRoot('root', start_at='ingest').add_states(
     MLModelSpec('ingest', class_name='T1Class'),
+    MLTaskChoice('if', default='data-prep')
+        .add_choice('event==10', 'post-process')
+        .add_choice('event==7', m4),
     MLTaskSpec('data-prep', class_name='T1Class', resource='f1'),
     MLTaskRouter('router', routes=[m1, m2, m3], class_params={'executor': 'thread'}),
     MLTaskSpec('post-process', class_name='T2Class'),
-    MLTaskEndpoint('update-db')
+    MLTaskEndpoint('update-db'),
+    m4,
 )
 
 nodes=[]
@@ -54,7 +60,7 @@ print(build_graph(p, nodes, edges))
 # pprint(edges)
 #exit(0)
 
-#print(p.to_yaml())
+print(p.to_yaml())
 
 print(p.init_objects(None, 'f1', globals(), 'f1'))
 

@@ -14,9 +14,6 @@ class MLTaskFlow(MLTaskSpecBase):
     def get_children(self):
         return self._states.values()
 
-    def first_step(self):
-        return '.'.join([self.fullname, self.start_at])
-
     @property
     def states(self):
         return self._states.to_list()
@@ -50,10 +47,6 @@ class MLTaskFlow(MLTaskSpecBase):
             self.add_state(state)
         return self
 
-    @property
-    def state_objects(self):
-        return self._states
-
     def run(self, event, *args, **kwargs):
         if not self.start_at:
             raise ValueError(f'flow {self.fullname} missing start_at')
@@ -67,8 +60,11 @@ class MLTaskFlow(MLTaskSpecBase):
                 raise ValueError(f'flow {self.fullname} next state {next} doesnt exist in {self._states.keys()}')
             next_obj = self._states[next]
             print(f'running {next_obj.fullname}')
-            event = next_obj.run(event, *args, **kwargs)
-            next = next_obj.next
+            if next_obj.kind == 'choice':
+                next = next_obj.choose(event, None)
+            else:
+                event = next_obj.run(event, *args, **kwargs)
+                next = next_obj.next
         return event
 
 
@@ -80,3 +76,49 @@ class MLTaskRoot(MLTaskFlow):
         super().__init__(name, states, start_at=start_at)
         self.triggers = None
         self.resources = None
+
+
+class MLTaskChoice(MLTaskSpecBase):
+    kind = 'choice'
+    _shape = 'diamond'
+    _dict_fields = MLTaskSpecBase._dict_fields + ['choices', 'default']
+
+    def __init__(self, name=None, choices=None, default=None):
+        super().__init__(name, next)
+        self._choices = choices or []
+        self.default = default
+
+    def add_choice(self, condition, next):
+        self._choices.append({'condition': condition, 'next': next})
+        return self
+
+    def choose(self, event, context):
+        for choice in self.choices:
+            condition = choice.get('condition', '')
+            value = eval(condition, {'event': event, 'context': context})
+            print(f'Choice event {event}, condition: {condition}, value: {value}')
+            if value:
+                return choice.get('next', '')
+        return self.default
+
+    @property
+    def choices(self):
+        resp = []
+        for choice in self._choices:
+            next = choice.get('next')
+            if not isinstance(next, str):
+                next = next.name
+            resp.append({'condition': choice['condition'], 'next': next})
+        return resp
+
+    @choices.setter
+    def choices(self, choices):
+        self._choices = choices
+
+    @property
+    def next(self):
+        return None
+
+    @next.setter
+    def next(self, next):
+        pass
