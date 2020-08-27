@@ -1,0 +1,101 @@
+{
+  "nodes": [
+    {
+      "data": {
+        "id": "ingest",
+        "text": "ingest",
+        "shape": "round-octagon"
+      }
+    },
+    {
+      "data": {
+        "id": "data-prep",
+        "text": "data-prep",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
+        "id": "router$",
+        "text": "router",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
+        "id": "router",
+        "text": "",
+        "shape": "star",
+        "parent": "router$"
+      }
+    },
+    {
+      "data": {
+        "id": "router.m1",
+        "text": "m1",
+        "shape": "round-octagon",
+        "parent": "router$"
+      }
+    },
+    {
+      "data": {
+        "id": "router.m2",
+        "text": "m2",
+        "shape": "round-octagon",
+        "parent": "router$"
+      }
+    },
+    {
+      "data": {
+        "id": "post-process",
+        "text": "post-process",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
+        "id": "update-db",
+        "text": "update-db",
+        "shape": "round-tag"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "data": {
+        "source": "ingest",
+        "target": "data-prep"
+      }
+    },
+    {
+      "data": {
+        "source": "data-prep",
+        "target": "router"
+      }
+    },
+    {
+      "data": {
+        "source": "router$",
+        "target": "post-process"
+      }
+    },
+    {
+      "data": {
+        "source": "router",
+        "target": "router.m1"
+      }
+    },
+    {
+      "data": {
+        "source": "router",
+        "target": "router.m2"
+      }
+    },
+    {
+      "data": {
+        "source": "post-process",
+        "target": "update-db"
+      }
+    }
+  ]
+}
