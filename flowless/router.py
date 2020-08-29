@@ -35,8 +35,7 @@ class _DefaultRouterClass:
         resp = []
         children = self.state.get_children()
         for child in children:
-            print('***', child.fullname)
-            resp.append(child.run(event, *args, **kwargs))
+            resp.append(child.run(self.context, event, *args, **kwargs))
         return resp
 
     def do(self, event, *args, **kwargs):

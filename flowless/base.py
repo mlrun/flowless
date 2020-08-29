@@ -39,16 +39,6 @@ class MLTaskSpecBase(ModelObj):
     def get_children(self):
         return []
 
-    def get_root_params(self):
-        if self._root and hasattr(self._root, 'parameters'):
-            return self._root.parameters
-        return {}
-
-    def get_server_context(self):
-        if self._root and hasattr(self._root, 'server_context'):
-            return self._root.server_context
-        return None
-
     def after(self, other):
         other._next_obj = self
         return self
@@ -76,7 +66,7 @@ class MLTaskSpecBase(ModelObj):
             name = '.'.join([self._parent.fullname, name])
         return name
 
-    def run(self, event, *args, **kwargs):
+    def run(self, context, event, *args, **kwargs):
         return event
 
     def get_state_object(self):

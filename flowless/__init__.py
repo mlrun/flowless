@@ -33,7 +33,6 @@ def _new_edge(source, target, edges=None):
 
 
 def build_graph(step, nodes=[], edges=[], parent=None):
-    print(step)
     if parent == 'root':
         parent = None
 

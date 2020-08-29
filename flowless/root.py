@@ -1,3 +1,4 @@
+import json
 import socket
 import sys
 
@@ -17,9 +18,10 @@ class Response(object):
 class TaskRunContext:
     def __init__(self):
         self.state = None
-        self.logger = create_logger('debug', 'human', "flow", sys.stdout)
+        self.logger = create_logger('info', 'human', "flow", sys.stdout)
         self.worker_id = 0
         self.Response = Response
+        self.root = None
 
 
 class _ServerContext:
@@ -36,17 +38,18 @@ class _ServerContext:
 
 class MLTaskRoot(MLTaskFlow):
     kind = 'root'
-    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers', 'default_resource', 'parameters']
+    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers', 'default_resource', 'parameters', 'format']
 
     def __init__(self, name=None, states=None, start_at=None,
-                 parameters=None, context=None, default_resource=None):
+                 parameters=None, default_resource=None, format=None):
         super().__init__(name, states, start_at=start_at)
         self.triggers = None
         self.resources = None
         self.parameters = parameters or {}
-        self.context = context or TaskRunContext()
+        self.context = None
         self.default_resource = default_resource
         self.server_context = None
+        self.format = format
 
     def start(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()
@@ -54,4 +57,19 @@ class MLTaskRoot(MLTaskFlow):
         setattr(self.context, 'root', self)
         self.init_objects(self.context, resource, namespace or globals(), self.default_resource)
 
+    def add_root_params(self, params={}):
+        for key, val in self.parameters.items():
+            if key not in params:
+                params[key] = val
+        return params
 
+    def run(self, context, event, *args, **kwargs):
+        context = context or self.context
+        response = super().run(context, event, *args, **kwargs)
+
+        if self.format == 'json' and not isinstance(response, (str, bytes)):
+            response = json.dumps(response)
+            return self.context.Response(
+                body=response, content_type='application/json', status_code=200
+            )
+        return response

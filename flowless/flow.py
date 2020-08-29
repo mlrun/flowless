@@ -31,7 +31,7 @@ class MLTaskFlow(MLTaskSpecBase):
 
     def add_state(self, state, after=None):
         state = self._states.add(state)
-        if after:
+        if after and after.next is None:
             state.after(after)
         state._parent = self
         return state
@@ -54,7 +54,7 @@ class MLTaskFlow(MLTaskSpecBase):
             self.add_state(state)
         return self
 
-    def run(self, event, *args, **kwargs):
+    def run(self, context, event, *args, **kwargs):
         if not self.start_at:
             raise ValueError(f'flow {self.fullname} missing start_at')
 
@@ -66,11 +66,11 @@ class MLTaskFlow(MLTaskSpecBase):
             if next not in self._states.keys():
                 raise ValueError(f'flow {self.fullname} next state {next} doesnt exist in {self._states.keys()}')
             next_obj = self._states[next]
-            print(f'running {next_obj.fullname}')
+            context.logger.debug(f'running {next_obj.fullname}')
             if next_obj.kind == 'choice':
-                next = next_obj.choose(event, None)
+                next = next_obj.choose(context, event)
             else:
-                event = next_obj.run(event, *args, **kwargs)
+                event = next_obj.run(context, event, *args, **kwargs)
                 next = next_obj.next
         return event
 
@@ -89,11 +89,11 @@ class MLTaskChoice(MLTaskSpecBase):
         self._choices.append({'condition': condition, 'next': next})
         return self
 
-    def choose(self, event, context):
+    def choose(self, context, event):
         for choice in self.choices:
             condition = choice.get('condition', '')
             value = eval(condition, {'event': event, 'context': context})
-            print(f'Choice event {event}, condition: {condition}, value: {value}')
+            context.logger.debug(f'Choice event {event}, condition: {condition}, value: {value}')
             if value:
                 return choice.get('next', '')
         return self.default

@@ -21,7 +21,6 @@ class ModelRouter:
                 body = json.loads(event.body)
             else:
                 body = event.body
-            self.context.logger.info(f'event.body: {event.body}')
             if 'data_url' in body:
                 # Get data from URL
                 url = body['data_url']
@@ -33,7 +32,7 @@ class ModelRouter:
                 parsed_event = body
 
         except Exception as e:
-            if event.content_type.startswith('image/'):
+            if getattr(event, 'content_type', '').startswith('image/'):
                 sample = BytesIO(event.body)
                 parsed_event['data'].append(sample)
                 parsed_event['content_type'] = event.content_type
@@ -48,10 +47,10 @@ class ModelRouter:
         assert len(keys) > 0, (
             "No models were loaded!\n Please register child models"
         )
-        self.context.logger.info(f'Loaded {list(keys())}')
+        self.context.logger.info(f'Loaded {list(keys)}')
 
     def select_child(self, event, body):
-        urlpath = getattr(event, 'path', '').strip('/')
+        urlpath = getattr(event, 'path', '')
         subpath = model = ''
         if urlpath:
             if not urlpath.startswith(self.url_prefix):
@@ -76,15 +75,13 @@ class ModelRouter:
     def do(self, event, *args, **kwargs):
         body = self.parse_event(event)
 
-        child, subpath = self.select_child(event.path, body)
-        print('*** run:', child.fullname)
-        response = child.run(event, subpath=subpath)
+        child, subpath = self.select_child(event, body)
+        if not child:
+            return {'models': list(self.state.keys())}
 
-        if not isinstance(response, (str, bytes)):
-            response = json.dumps(response)
-        return self.context.Response(
-            body=response, content_type='application/json', status_code=200
-        )
+        self.context.logger.debug(f'router run child {child.fullname}, body={body}')
+        response = child.run(self.context, body, subpath=subpath)
+        return response
 
     def preprocess(self, request: Dict) -> Dict:
         return request
@@ -94,21 +91,17 @@ class ModelRouter:
 
 
 class NewModelServer:
-    def __init__(self, context, name: str, state=None, model_dir: str = None, model=None, **kwargs):
+    def __init__(self, context, name: str, model_dir: str = None, model=None, **kwargs):
         self.name = name
         self.context = context
         self.ready = False
         self.model_dir = model_dir
         self.model_spec = None
-        self._params = {}
+        self._params = kwargs
         self._model_logger = None
-        if state:
-            self._params = state.get_root_params()
-            server_context = state.get_server_context()
-            self._model_logger = ModelLogPusher(self, server_context)
-
-        for k, v in kwargs.items():
-            self._params[k] = v
+        if context and getattr(context, 'root'):
+            self._params = context.root.add_root_params(self._params)
+            self._model_logger = ModelLogPusher(self, context.root.server_context)
 
         self.metrics = {}
         self.labels = {}
@@ -146,14 +139,15 @@ class NewModelServer:
         response = self.postprocess(response)
         if self._model_logger:
             self._model_logger.push(start, request, response)
+        return response
 
 
     def validate(self, request):
-        if "instances" not in request:
-            raise Exception("Expected key \"instances\" in request body")
+        if "data" not in request:
+            raise Exception("Expected key \"data\" in request body")
 
-        if not isinstance(request["instances"], list):
-            raise Exception("Expected \"instances\" to be a list")
+        if not isinstance(request["data"], list):
+            raise Exception("Expected \"data\" to be a list")
 
         return request
 

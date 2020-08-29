@@ -30,7 +30,7 @@ class MLTaskSpec(MLTaskSpecBase):
                 return
             raise ValueError(f'class_name is not defined for {self.name}')
 
-        print(f'init class {self.class_name} in {self.name}')
+        context.logger.debug(f'init class {self.class_name} in {self.name}')
         if self._class_object:
             self._object = init_class(self._class_object, context, self, **self.class_params)
             return
@@ -43,8 +43,8 @@ class MLTaskSpec(MLTaskSpecBase):
         if hasattr(self._object, 'post_init'):
             self._object.post_init()
 
-    def run(self, event, *args, **kwargs):
-        print(f'running state {self.fullname}')
+    def run(self, context, event, *args, **kwargs):
+        context.logger.debug(f'running state {self.fullname}')
         if not self._object:
             raise RuntimeError(f'state {self.name} run failed, class {self.class_name} not initialized')
         return self._object.do(event)
