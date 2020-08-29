@@ -2,13 +2,9 @@ import time
 from multiprocessing.dummy import freeze_support
 from pprint import pprint
 
-from flowless import MLModelSpec, MLTaskSpec, MLTaskRouter, MLTaskEndpoint, build_graph
-from flowless.flow import MLTaskRoot, MLTaskChoice
-
-
-class TaskRunContext:
-    def __init__(self):
-        self.state = None
+from flowless import MLModelSpec, MLTaskSpec, MLTaskRouter, MLTaskEndpoint, build_graph, save_graph
+from flowless.flow import MLTaskChoice
+from flowless.root import MLTaskRoot
 
 
 class BaseClass:
@@ -18,7 +14,7 @@ class BaseClass:
 
 
 class MClass:
-    def __init__(self, context, state, z=None):
+    def __init__(self, z=None):
         self.z = z
 
     def do(self, x):
@@ -42,33 +38,23 @@ m3 = MLModelSpec('m3', class_name='MClass', class_params={'z': 300})
 m4 = MLModelSpec('m4', class_name='MClass', class_params={'z': 300})
 
 p = MLTaskRoot('root', start_at='ingest').add_states(
-    MLModelSpec('ingest', class_name='T1Class'),
-    MLTaskChoice('if', default='data-prep')
-        .add_choice('event==10', 'post-process')
-        .add_choice('event==7', m4),
+    MLModelSpec('ingest', class_name=T1Class),
+    # MLTaskChoice('if', default='data-prep')
+    #     .add_choice('event==10', 'post-process')
+    #     .add_choice('event==7', m4),
     MLTaskSpec('data-prep', class_name='T1Class', resource='f1'),
     MLTaskRouter('router', routes=[m1, m2, m3], class_params={'executor': 'thread'}),
     MLTaskSpec('post-process', class_name='T2Class'),
     MLTaskEndpoint('update-db'),
-    m4,
 )
 
-nodes=[]
-edges=[]
-print(build_graph(p, nodes, edges))
-# pprint(nodes)
-# pprint(edges)
-#exit(0)
 
 print(p.to_yaml())
 
-print(p.init_objects(None, 'f1', globals(), 'f1'))
+print(p.start('*', namespace=globals()))
 
-import json, os
-serve_dir = "js/data.json"
-#nodes, edges = p.get_graph()
-with open(serve_dir, "w", encoding="utf-8") as fp:
-    fp.write(json.dumps({'nodes': nodes, 'edges': edges}, cls=None, indent=2))
+
+save_graph(p, "js/data.json")
 
 if __name__ == '__main__':
     __spec__ = None

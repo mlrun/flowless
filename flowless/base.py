@@ -16,6 +16,7 @@ class MLTaskSpecBase(ModelObj):
     def __init__(self, name=None, next=None):
         self.name = name
         self._object = None
+        self._root = None
         self._parent = None
         self.comment = None
         self._next = next
@@ -38,6 +39,16 @@ class MLTaskSpecBase(ModelObj):
     def get_children(self):
         return []
 
+    def get_root_params(self):
+        if self._root and hasattr(self._root, 'parameters'):
+            return self._root.parameters
+        return {}
+
+    def get_server_context(self):
+        if self._root and hasattr(self._root, 'server_context'):
+            return self._root.server_context
+        return None
+
     def after(self, other):
         other._next_obj = self
         return self
@@ -45,12 +56,18 @@ class MLTaskSpecBase(ModelObj):
     def _init_object(self, context, current_resource, namespace):
         pass
 
+    def _post_init(self):
+        pass
+
     def init_objects(self, context, current_resource, namespace, parent_resource=None):
         resource = getattr(self, 'resource', None) or parent_resource
+        self._root = getattr(context, 'root', None)
         if current_resource in ['*', resource]:
             self._init_object(context, current_resource, namespace)
         for child in self.get_children():
             child.init_objects(context, current_resource, namespace, resource)
+        if current_resource in ['*', resource]:
+            self._post_init()
 
     @property
     def fullname(self):
@@ -61,6 +78,9 @@ class MLTaskSpecBase(ModelObj):
 
     def run(self, event, *args, **kwargs):
         return event
+
+    def get_state_object(self):
+        return self._object
 
 
 class TaskList:

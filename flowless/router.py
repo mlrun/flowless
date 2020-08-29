@@ -10,7 +10,7 @@ class _DefaultRouterClass:
         self.state = state
         self.executor = kwargs.get('executor', None)
 
-    def _do_parallel(self, event):
+    def _do_parallel(self, event, *args, **kwargs):
         results = []
         children = self.state.get_children()
         if self.executor == 'process':
@@ -31,19 +31,19 @@ class _DefaultRouterClass:
                     results.append(data)
         return results
 
-    def _do_sync(self, event):
+    def _do_sync(self, event, *args, **kwargs):
         resp = []
         children = self.state.get_children()
         for child in children:
             print('***', child.fullname)
-            resp.append(child.run(event))
+            resp.append(child.run(event, *args, **kwargs))
         return resp
 
-    def do(self, event):
+    def do(self, event, *args, **kwargs):
         if self.executor:
-            results = self._do_parallel(event)
+            results = self._do_parallel(event, *args, **kwargs)
         else:
-            results = self._do_sync(event)
+            results = self._do_sync(event, *args, **kwargs)
         return results
 
 
@@ -61,6 +61,12 @@ class MLTaskRouter(MLTaskSpec):
         self.weight_table = weight_table
 
     def get_children(self):
+        return self._routes.values()
+
+    def keys(self):
+        return self._routes.keys()
+
+    def values(self):
         return self._routes.values()
 
     @property

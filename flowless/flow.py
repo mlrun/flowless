@@ -1,5 +1,6 @@
-from flowless.base import MLTaskSpecBase, resource_params, TaskList
+import sys
 
+from flowless.base import MLTaskSpecBase, resource_params, TaskList
 
 class MLTaskFlow(MLTaskSpecBase):
     kind = 'subflow'
@@ -12,6 +13,12 @@ class MLTaskFlow(MLTaskSpecBase):
         self.start_at = start_at
 
     def get_children(self):
+        return self._states.values()
+
+    def keys(self):
+        return self._states.keys()
+
+    def values(self):
         return self._states.values()
 
     @property
@@ -66,16 +73,6 @@ class MLTaskFlow(MLTaskSpecBase):
                 event = next_obj.run(event, *args, **kwargs)
                 next = next_obj.next
         return event
-
-
-class MLTaskRoot(MLTaskFlow):
-    kind = 'root'
-    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers']
-
-    def __init__(self, name=None, states=None, start_at=None):
-        super().__init__(name, states, start_at=start_at)
-        self.triggers = None
-        self.resources = None
 
 
 class MLTaskChoice(MLTaskSpecBase):

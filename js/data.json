@@ -9,13 +9,6 @@
     },
     {
       "data": {
-        "id": "if",
-        "text": "if",
-        "shape": "diamond"
-      }
-    },
-    {
-      "data": {
         "id": "data-prep",
         "text": "data-prep",
         "shape": "round-rectangle"
@@ -73,37 +66,12 @@
         "text": "update-db",
         "shape": "round-tag"
       }
-    },
-    {
-      "data": {
-        "id": "m3",
-        "text": "m3",
-        "shape": "round-octagon"
-      }
     }
   ],
   "edges": [
     {
       "data": {
         "source": "ingest",
-        "target": "if"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "post-process"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "m3"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
         "target": "data-prep"
       }
     },
@@ -141,12 +109,6 @@
       "data": {
         "source": "post-process",
         "target": "update-db"
-      }
-    },
-    {
-      "data": {
-        "source": "update-db",
-        "target": "m3"
       }
     }
   ]

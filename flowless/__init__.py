@@ -1,3 +1,5 @@
+import json
+
 from flowless.flow import MLTaskFlow, MLTaskChoice
 from flowless.router import MLTaskRouter
 from flowless.task import MLTaskSpec, MLModelSpec, MLTaskEndpoint
@@ -69,3 +71,11 @@ def build_graph(step, nodes=[], edges=[], parent=None):
         edges += _new_edge(step.fullname, step.next)
         nodes.append(_get_node_obj(name=step.fullname, text=step.name,
                                    shape=step._shape, parent=parent))
+
+
+def save_graph(root, target):
+    nodes = []
+    edges = []
+    build_graph(root, nodes, edges)
+    with open(target, "w", encoding="utf-8") as fp:
+        fp.write(json.dumps({'nodes': nodes, 'edges': edges}, cls=None, indent=2))
