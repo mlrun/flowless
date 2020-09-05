@@ -18,7 +18,7 @@ class Response(object):
 class TaskRunContext:
     def __init__(self):
         self.state = None
-        self.logger = create_logger('info', 'human', "flow", sys.stdout)
+        self.logger = create_logger('debug', 'human', "flow", sys.stdout)
         self.worker_id = 0
         self.Response = Response
         self.root = None
@@ -38,13 +38,13 @@ class _ServerContext:
 
 class MLTaskRoot(MLTaskFlow):
     kind = 'root'
-    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers', 'default_resource', 'parameters', 'format']
+    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers', 'resources', 'default_resource', 'parameters', 'format']
 
     def __init__(self, name=None, states=None, start_at=None,
                  parameters=None, default_resource=None, format=None):
         super().__init__(name, states, start_at=start_at)
         self.triggers = None
-        self.resources = None
+        self.resources = None or {}
         self.parameters = parameters or {}
         self.context = None
         self.default_resource = default_resource

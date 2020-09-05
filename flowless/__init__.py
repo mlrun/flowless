@@ -2,14 +2,12 @@ import json
 
 from flowless.flow import MLTaskFlow, MLTaskChoice
 from flowless.router import MLTaskRouter
-from flowless.task import MLTaskSpec, MLModelSpec, MLTaskEndpoint
+from flowless.task import MLTaskSpec
 
 task_kinds = {'task': MLTaskSpec,
-              'model': MLModelSpec,
               'router': MLTaskRouter,
               'subflow': MLTaskFlow,
-              'choice': MLTaskChoice,
-              'endpoint': MLTaskEndpoint}
+              'choice': MLTaskChoice}
 
 default_shape = 'round-rectangle'
 
@@ -32,25 +30,30 @@ def _new_edge(source, target, edges=None):
     return edges
 
 
-def build_graph(step, nodes=[], edges=[], parent=None):
-    if parent == 'root':
-        parent = None
+def _next_fullname(state):
+    if state.parent_name and state.next:
+        return '.'.join([state.parent_name, state.next])
+    return state.next
 
+
+def build_graph(step, nodes=[], edges=[], parent=None):
     if hasattr(step, 'states'):
         if parent:
             nodes.append(_get_node_obj(name=step.fullname, text=step.name,
                                        shape=step._shape, parent=parent))
         if step.next:
-            edges.append(_new_edge(step.fullname, step.next))
-        for state in step._states.values():
-            build_graph(state, nodes, edges, step.fullname)
+            edges.append(_new_edge(step.fullname, _next_fullname(step)))
+
+        for state in step.values():
+            parent_name = None if step.kind == 'root' else step.fullname
+            build_graph(state, nodes, edges, parent_name)
 
     elif hasattr(step, 'routes'):
         switch_name = step.fullname + '$'
-        edges += _new_edge(switch_name, step.next)
+        edges += _new_edge(switch_name, _next_fullname(step))
         nodes.append(_get_node_obj(name=switch_name, text=step.name, parent=parent))
         nodes.append(_get_node_obj(name=step.fullname, text=step.class_name, shape='star', parent=switch_name))
-        for route in step._routes.values():
+        for route in step.values():
             build_graph(route, nodes, edges, switch_name)
             edges += _new_edge(step.fullname, route.fullname)
 
@@ -64,10 +67,13 @@ def build_graph(step, nodes=[], edges=[], parent=None):
                     next = '.'.join([parent, next])
                 edges += _new_edge(step.fullname, next)
         if step.default:
-            edges += _new_edge(step.fullname, step.default)
+            next = step.default
+            if parent:
+                next = '.'.join([parent, next])
+            edges += _new_edge(step.fullname, next)
 
     else:
-        edges += _new_edge(step.fullname, step.next)
+        edges += _new_edge(step.fullname, _next_fullname(step))
         nodes.append(_get_node_obj(name=step.fullname, text=step.name,
                                    shape=step._shape, parent=parent))
 

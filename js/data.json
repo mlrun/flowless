@@ -2,9 +2,23 @@
   "nodes": [
     {
       "data": {
+        "id": "ingest",
+        "text": "ingest",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
         "id": "if",
         "text": "if",
         "shape": "diamond"
+      }
+    },
+    {
+      "data": {
+        "id": "data-prep",
+        "text": "data-prep",
+        "shape": "round-rectangle"
       }
     },
     {
@@ -17,7 +31,7 @@
     {
       "data": {
         "id": "router",
-        "text": "ModelRouter",
+        "text": "router",
         "shape": "star",
         "parent": "router$"
       }
@@ -26,7 +40,7 @@
       "data": {
         "id": "router.m1",
         "text": "m1",
-        "shape": "round-octagon",
+        "shape": "round-rectangle",
         "parent": "router$"
       }
     },
@@ -34,7 +48,7 @@
       "data": {
         "id": "router.m2",
         "text": "m2",
-        "shape": "round-octagon",
+        "shape": "round-rectangle",
         "parent": "router$"
       }
     },
@@ -42,14 +56,21 @@
       "data": {
         "id": "router.m3",
         "text": "m3",
-        "shape": "round-octagon",
+        "shape": "round-rectangle",
         "parent": "router$"
       }
     },
     {
       "data": {
-        "id": "list-models",
-        "text": "list-models",
+        "id": "post-process",
+        "text": "post-process",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
+        "id": "update-db",
+        "text": "update-db",
         "shape": "round-rectangle"
       }
     }
@@ -57,14 +78,38 @@
   "edges": [
     {
       "data": {
-        "source": "if",
-        "target": "list-models"
+        "source": "ingest",
+        "target": "if"
       }
     },
     {
       "data": {
         "source": "if",
+        "target": "post-process"
+      }
+    },
+    {
+      "data": {
+        "source": "if",
+        "target": "update-db"
+      }
+    },
+    {
+      "data": {
+        "source": "if",
+        "target": "data-prep"
+      }
+    },
+    {
+      "data": {
+        "source": "data-prep",
         "target": "router"
+      }
+    },
+    {
+      "data": {
+        "source": "router$",
+        "target": "post-process"
       }
     },
     {
@@ -83,6 +128,12 @@
       "data": {
         "source": "router",
         "target": "router.m3"
+      }
+    },
+    {
+      "data": {
+        "source": "post-process",
+        "target": "update-db"
       }
     }
   ]

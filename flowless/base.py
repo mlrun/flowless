@@ -4,8 +4,7 @@ from mlrun.model import ModelObj
 
 # kinds: model, router, parallel, map
 import flowless
-
-resource_params = ['resource', 'transport', 'message_format', 'url']
+from flowless.transport import new_session
 
 
 class MLTaskSpecBase(ModelObj):
@@ -19,50 +18,69 @@ class MLTaskSpecBase(ModelObj):
         self._root = None
         self._parent = None
         self.comment = None
-        self._next = next
-        self._next_obj = None
+        self.next = next
         self.end = None
+        self._is_remote = False
 
     @property
-    def next(self):
-        if self._next_obj:
-            return self._next_obj.fullname
-        return self._next
+    def parent_name(self):
+        if self._parent and not self._parent.kind == 'root':
+            return self._parent.fullname
+        return ''
 
-    @next.setter
-    def next(self, next):
-        if hasattr(next, 'kind'):
-            self._next_obj = next
-        else:
-            self._next = next
+    def set_parent(self, parent):
+        self._parent = parent
 
     def get_children(self):
         return []
 
-    def after(self, other):
-        other._next_obj = self
+    def before(self, next):
+        if hasattr(next, 'kind'):
+            self.next = next.name
+        else:
+            self.next = next
         return self
 
-    def _init_object(self, context, current_resource, namespace):
+    def after(self, other):
+        other.next = self.name
+        return self
+
+    def _init_object(self, context, namespace):
         pass
 
     def _post_init(self):
         pass
 
     def init_objects(self, context, current_resource, namespace, parent_resource=None):
-        resource = getattr(self, 'resource', None) or parent_resource
+        resource = getattr(self, 'resource', None)
         self._root = getattr(context, 'root', None)
+        if resource and current_resource not in ['*', resource]:
+            self._is_remote = True
+            if self.resource not in self._root.resources:
+                raise RuntimeError(f'resource {self.resource} not defined in root')
+            self._object = new_session(self, self._root.resources[self.resource])
+
+        resource = resource or parent_resource
         if current_resource in ['*', resource]:
-            self._init_object(context, current_resource, namespace)
+            self._init_object(context, namespace)
+
         for child in self.get_children():
+            if child.next:
+                if child.next not in self.keys():
+                    raise ValueError(f'next state ({child.next} not found in {self.fullname}')
+                child.before(self[child.next])
             child.init_objects(context, current_resource, namespace, resource)
-        if current_resource in ['*', resource]:
-            self._post_init()
+
+        self._post_init()
 
     @property
     def fullname(self):
         name = self.name
-        if self._parent and not self._parent.kind == 'root':
+        if self.kind == 'root':
+            raise ValueError('GET FULLNAME FOR ROOT!')
+        if not self._parent:
+            raise ValueError('parent is not set, add this task to a flow or a router')
+        if not self._parent.kind == 'root':
             name = '.'.join([self._parent.fullname, name])
         return name
 
@@ -82,6 +100,9 @@ class TaskList:
 
     def keys(self):
         return self._tasks.keys()
+
+    def __len__(self):
+        return len(self._tasks)
 
     def __getitem__(self, name):
         return self._tasks[name]

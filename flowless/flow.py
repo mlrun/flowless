@@ -1,6 +1,6 @@
 import sys
 
-from flowless.base import MLTaskSpecBase, resource_params, TaskList
+from flowless.base import MLTaskSpecBase, TaskList
 
 class MLTaskFlow(MLTaskSpecBase):
     kind = 'subflow'
@@ -33,7 +33,7 @@ class MLTaskFlow(MLTaskSpecBase):
         state = self._states.add(state)
         if after and after.next is None:
             state.after(after)
-        state._parent = self
+        state.set_parent(self)
         return state
 
     def add_states(self, *states, chain=True):
@@ -55,24 +55,10 @@ class MLTaskFlow(MLTaskSpecBase):
         return self
 
     def run(self, context, event, *args, **kwargs):
-        if not self.start_at:
-            raise ValueError(f'flow {self.fullname} missing start_at')
-
-        next = self.start_at
-        while next:
-            idx = next.rfind('.')
-            if idx >= 0:
-                next = next[idx + 1:]
-            if next not in self._states.keys():
-                raise ValueError(f'flow {self.fullname} next state {next} doesnt exist in {self._states.keys()}')
-            next_obj = self._states[next]
-            context.logger.debug(f'running {next_obj.fullname}')
-            if next_obj.kind == 'choice':
-                next = next_obj.choose(context, event)
-            else:
-                event = next_obj.run(context, event, *args, **kwargs)
-                next = next_obj.next
-        return event
+        if not self.start_at or self.start_at not in self.keys():
+            raise ValueError(f'start_at step {self.start_at} was not specified or doesnt exist in {self.fullname}')
+        next_obj = self[self.start_at]
+        return next_obj.run(context, event, *args, **kwargs)
 
 
 class MLTaskChoice(MLTaskSpecBase):
@@ -85,18 +71,18 @@ class MLTaskChoice(MLTaskSpecBase):
         self._choices = choices or []
         self.default = default
 
+    def init_objects(self, context, current_resource, namespace, parent_resource=None):
+        if not self._parent:
+            raise ValueError('missing parent')
+        if self.default and self.default not in self._parent.keys():
+            raise ValueError(f'default next step {self.default} not found in parent')
+        for val in self._choices:
+            if val['next'] not in self._parent.keys():
+                raise ValueError(f'next step {val["next"]} not found in parent')
+
     def add_choice(self, condition, next):
         self._choices.append({'condition': condition, 'next': next})
         return self
-
-    def choose(self, context, event):
-        for choice in self.choices:
-            condition = choice.get('condition', '')
-            value = eval(condition, {'event': event, 'context': context})
-            context.logger.debug(f'Choice event {event}, condition: {condition}, value: {value}')
-            if value:
-                return choice.get('next', '')
-        return self.default
 
     @property
     def choices(self):
@@ -119,3 +105,17 @@ class MLTaskChoice(MLTaskSpecBase):
     @next.setter
     def next(self, next):
         pass
+
+    def _choose(self, context, event):
+        for choice in self.choices:
+            condition = choice.get('condition', '')
+            value = eval(condition, {'event': event, 'context': context})
+            context.logger.debug(f'Choice event {event}, condition: {condition}, value: {value}')
+            if value:
+                return choice.get('next', '')
+        return self.default
+
+    def run(self, context, event, *args, **kwargs):
+        next = self._choose(context, event)
+        next_obj = self._parent[next]
+        return next_obj.run(context, event, *args, **kwargs)

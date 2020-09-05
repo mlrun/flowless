@@ -78,7 +78,7 @@ class MLTaskRouter(MLTaskSpec):
 
     def add_route(self, route):
         route = self._routes.add(route)
-        route._parent = self
+        route.set_parent(self)
         return route
 
     def __getitem__(self, name):

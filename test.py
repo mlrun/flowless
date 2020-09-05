@@ -1,8 +1,10 @@
+
+
 import time
 from multiprocessing.dummy import freeze_support
 from pprint import pprint
 
-from flowless import MLModelSpec, MLTaskSpec, MLTaskRouter, MLTaskEndpoint, build_graph, save_graph
+from flowless import MLTaskSpec, MLTaskRouter, build_graph, save_graph
 from flowless.flow import MLTaskChoice
 from flowless.root import MLTaskRoot
 
@@ -32,26 +34,28 @@ class T2Class(BaseClass):
         return x * 3
 
 
-m1 = MLModelSpec('m1', class_name='MClass', class_params={'z': 100})
-m2 = MLModelSpec('m2', class_name='MClass', class_params={'z': 200})
-m3 = MLModelSpec('m3', class_name='MClass', class_params={'z': 300})
-m4 = MLModelSpec('m4', class_name='MClass', class_params={'z': 300})
+m1 = MLTaskSpec('m1', class_name='MClass', class_params={'z': 100})
+m2 = MLTaskSpec('m2', class_name='MClass', class_params={'z': 200})
+m3 = MLTaskSpec('m3', class_name='MClass', class_params={'z': 300})
+m4 = MLTaskSpec('m4', class_name='MClass', class_params={'z': 300})
 
 p = MLTaskRoot('root', start_at='ingest').add_states(
-    MLModelSpec('ingest', class_name=T1Class),
-    # MLTaskChoice('if', default='data-prep')
-    #     .add_choice('event==10', 'post-process')
-    #     .add_choice('event==7', m4),
+    MLTaskSpec('ingest', class_name=T1Class),
+    MLTaskChoice('if', default='data-prep')
+        .add_choice('event==10', 'post-process')
+        .add_choice('event==7', 'update-db'),
     MLTaskSpec('data-prep', class_name='T1Class', resource='f1'),
     MLTaskRouter('router', routes=[m1, m2, m3], class_params={'executor': 'thread'}),
     MLTaskSpec('post-process', class_name='T2Class'),
-    MLTaskEndpoint('update-db'),
+    MLTaskSpec('update-db', class_name='T2Class'),
 )
 
 
 print(p.to_yaml())
+p.default_resource = 'f1'
+p.resources = {'f2': {'url': 'http://localhost:5000'}}
 
-print(p.start('*', namespace=globals()))
+print(p.start('f1', namespace=globals()))
 
 
 save_graph(p, "js/data.json")
@@ -59,5 +63,5 @@ save_graph(p, "js/data.json")
 if __name__ == '__main__':
     __spec__ = None
     freeze_support()
-    print(p.run(5))
+    print(p.run(None, 5))
 
