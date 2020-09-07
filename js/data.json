@@ -31,7 +31,7 @@
     {
       "data": {
         "id": "router",
-        "text": "router",
+        "text": "ParallelRouter",
         "shape": "star",
         "parent": "router$"
       }

@@ -2,26 +2,10 @@ import json
 import socket
 import sys
 
-from mlrun.utils import create_logger
-from flowless import MLTaskFlow
+from .flow import SubflowState
 from mlrun.platforms.iguazio import OutputStream
 
-
-class Response(object):
-    def __init__(self, headers=None, body=None, content_type=None, status_code=200):
-        self.headers = headers or {}
-        self.body = body
-        self.status_code = status_code
-        self.content_type = content_type or 'text/plain'
-
-
-class TaskRunContext:
-    def __init__(self):
-        self.state = None
-        self.logger = create_logger('debug', 'human', "flow", sys.stdout)
-        self.worker_id = 0
-        self.Response = Response
-        self.root = None
+from flowless.common import TaskRunContext, Event
 
 
 class _ServerContext:
@@ -36,20 +20,21 @@ class _ServerContext:
             self.output_stream = OutputStream(out_stream)
 
 
-class MLTaskRoot(MLTaskFlow):
+class FlowRoot(SubflowState):
     kind = 'root'
-    _dict_fields = MLTaskFlow._dict_fields[1:] + ['triggers', 'resources', 'default_resource', 'parameters', 'format']
+    _dict_fields = SubflowState._dict_fields[1:] + ['source', 'resources', 'default_resource', 'parameters', 'format']
 
     def __init__(self, name=None, states=None, start_at=None,
-                 parameters=None, default_resource=None, format=None):
+                 parameters=None, default_resource=None, format=None, trace=None):
         super().__init__(name, states, start_at=start_at)
-        self.triggers = None
+        self.source = None or {}
         self.resources = None or {}
         self.parameters = parameters or {}
         self.context = None
         self.default_resource = default_resource
         self.server_context = None
         self.format = format
+        self.trace = trace
 
     def start(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()
@@ -63,8 +48,13 @@ class MLTaskRoot(MLTaskFlow):
                 params[key] = val
         return params
 
-    def run(self, context, event, *args, **kwargs):
+    def run(self, event, *args, context=None, **kwargs):
         context = context or self.context
+        if not hasattr(event, 'id'):
+            event = Event(body=event)
+
+        if self.trace:
+            event.add_trace(event.id, self.name, 'start', event.body)
         response = super().run(context, event, *args, **kwargs)
 
         if self.format == 'json' and not isinstance(response, (str, bytes)):

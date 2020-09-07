@@ -1,13 +1,11 @@
 import json
 
-from flowless.flow import MLTaskFlow, MLTaskChoice
-from flowless.router import MLTaskRouter
-from flowless.task import MLTaskSpec
+from flowless.states import SubflowState, ChoiceState, RouterState, TaskState, FlowRoot
 
-task_kinds = {'task': MLTaskSpec,
-              'router': MLTaskRouter,
-              'subflow': MLTaskFlow,
-              'choice': MLTaskChoice}
+task_kinds = {'task': TaskState,
+              'router': RouterState,
+              'subflow': SubflowState,
+              'choice': ChoiceState}
 
 default_shape = 'round-rectangle'
 

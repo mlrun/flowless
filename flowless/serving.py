@@ -72,16 +72,19 @@ class ModelRouter:
 
         return self.state[model], subpath
 
-    def do(self, event, *args, **kwargs):
+    def do_event(self, event, *args, **kwargs):
         body = self.parse_event(event)
 
         child, subpath = self.select_child(event, body)
         if not child:
+            setattr(event, 'terminated', True)
             return {'models': list(self.state.keys())}
 
         self.context.logger.debug(f'router run child {child.fullname}, body={body}')
-        response = child.run(self.context, body, subpath=subpath)
-        return response
+        event.body = body
+        event.path = subpath
+        response = child.run(self.context, event, subpath=subpath)
+        return response.body if response else None
 
     def preprocess(self, request: Dict) -> Dict:
         return request
@@ -128,11 +131,11 @@ class NewModelServer:
         if not self.ready and not self.model:
             raise ValueError('please specify a load method or a model object')
 
-    def do(self, event, *args, **kwargs):
+    def do_event(self, event, *args, **kwargs):
         start = datetime.now()
-        request = self.preprocess(event)
+        request = self.preprocess(event.body)
         request = self.validate(request)
-        if kwargs.get('subpath', '') == 'explain':
+        if event.path.strip('/') == 'explain':
             response = self.explain(request)
         else:
             response = self.predict(request)

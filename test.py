@@ -4,9 +4,8 @@ import time
 from multiprocessing.dummy import freeze_support
 from pprint import pprint
 
-from flowless import MLTaskSpec, MLTaskRouter, build_graph, save_graph
-from flowless.flow import MLTaskChoice
-from flowless.root import MLTaskRoot
+from flowless import TaskState, RouterState, ChoiceState, FlowRoot, save_graph
+from flowless.states.router import ParallelRouter
 
 
 class BaseClass:
@@ -30,24 +29,27 @@ class T1Class(BaseClass):
 
 
 class T2Class(BaseClass):
-    def do(self, x):
+    def xo(self, x):
         return x * 3
 
 
-m1 = MLTaskSpec('m1', class_name='MClass', class_params={'z': 100})
-m2 = MLTaskSpec('m2', class_name='MClass', class_params={'z': 200})
-m3 = MLTaskSpec('m3', class_name='MClass', class_params={'z': 300})
-m4 = MLTaskSpec('m4', class_name='MClass', class_params={'z': 300})
+def f5(x):
+    return x * 7
 
-p = MLTaskRoot('root', start_at='ingest').add_states(
-    MLTaskSpec('ingest', class_name=T1Class),
-    MLTaskChoice('if', default='data-prep')
-        .add_choice('event==10', 'post-process')
-        .add_choice('event==7', 'update-db'),
-    MLTaskSpec('data-prep', class_name='T1Class', resource='f1'),
-    MLTaskRouter('router', routes=[m1, m2, m3], class_params={'executor': 'thread'}),
-    MLTaskSpec('post-process', class_name='T2Class'),
-    MLTaskSpec('update-db', class_name='T2Class'),
+m1 = TaskState('m1', class_name='MClass', class_params={'z': 100})
+m2 = TaskState('m2', class_name='MClass', class_params={'z': 200})
+m3 = TaskState('m3', class_name='MClass', class_params={'z': 300})
+m4 = TaskState('m4', class_name='MClass', class_params={'z': 300})
+
+p = FlowRoot('root', start_at='ingest', trace=True).add_states(
+    TaskState('ingest', class_name=T1Class),
+    ChoiceState('if', default='data-prep')
+        .add_choice('event.body==10', 'post-process')
+        .add_choice('event.body==7', 'update-db'),
+    TaskState('data-prep', class_name='T1Class', resource='f1'),
+    RouterState('router', routes=[m1, m2, m3], class_name=ParallelRouter, class_params={'executor': 'thread'}),
+    TaskState('post-process', class_name='T2Class', handler='xo'),
+    TaskState('update-db', handler='f5'),
 )
 
 
@@ -63,5 +65,5 @@ save_graph(p, "js/data.json")
 if __name__ == '__main__':
     __spec__ = None
     freeze_support()
-    print(p.run(None, 5))
+    print(p.run(10))
 

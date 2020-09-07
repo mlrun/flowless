@@ -2,19 +2,18 @@ from pprint import pprint
 
 from mlrun.model import ModelObj
 
-# kinds: model, router, parallel, map
 import flowless
 from flowless.transport import new_session
 
 
-class MLTaskSpecBase(ModelObj):
+class BaseState(ModelObj):
     kind = 'base'
     _dict_fields = ['kind', 'name', 'next', 'end']
     _shape = 'round-rectangle'
 
     def __init__(self, name=None, next=None):
         self.name = name
-        self._object = None
+        self._fn = None
         self._root = None
         self._parent = None
         self.comment = None
@@ -58,7 +57,7 @@ class MLTaskSpecBase(ModelObj):
             self._is_remote = True
             if self.resource not in self._root.resources:
                 raise RuntimeError(f'resource {self.resource} not defined in root')
-            self._object = new_session(self, self._root.resources[self.resource])
+            self._fn = new_session(self, self._root.resources[self.resource]).do
 
         resource = resource or parent_resource
         if current_resource in ['*', resource]:
@@ -85,10 +84,7 @@ class MLTaskSpecBase(ModelObj):
         return name
 
     def run(self, context, event, *args, **kwargs):
-        return event
-
-    def get_state_object(self):
-        return self._object
+        return event.body
 
 
 class TaskList:

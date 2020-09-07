@@ -1,20 +1,6 @@
+from flowless.common import Event
 from flowless.serving import NewModelServer, ModelRouter
-from flowless import MLTaskSpec, MLTaskRouter, MLTaskChoice, save_graph
-from flowless.root import MLTaskRoot
-
-
-class Event(object):
-
-    def __init__(self, body=None, content_type=None,
-                 headers=None, method=None, path=None):
-        self.id = 0
-        self.body = body
-        self.content_type = content_type
-        self.trigger = None
-        self.headers = headers or {}
-        self.method = method
-        self.path = path or '/'
-        self.end = False
+from flowless import TaskState, RouterState, ChoiceState, FlowRoot, save_graph
 
 
 class Getlist:
@@ -43,15 +29,16 @@ class MClass(NewModelServer):
         return resp
 
 
-m1 = MLTaskSpec('m1', class_name='MClass', class_params={'z': 100})
-m2 = MLTaskSpec('m2', class_name='MClass', class_params={'z': 200})
-m3 = MLTaskSpec('m3', class_name='MClass', class_params={'z': 300})#, resource='f2')
+m1 = TaskState('m1', class_name='MClass', class_params={'z': 100})
+m2 = TaskState('m2', class_name='MClass', class_params={'z': 200})
+m3 = TaskState('m3', class_name='MClass', class_params={'z': 300})#, resource='f2')
 
-p = MLTaskRoot('root', start_at='if').add_states(
-    MLTaskChoice('if', default='router')
-        .add_choice('event.path.strip("/") == "v1/models"', 'list-models'),
-    MLTaskSpec('list-models', class_name='Getlist', next=''),
-    MLTaskRouter('router', routes=[m1, m2, m3], class_name=ModelRouter, class_params={}),
+p = FlowRoot('root', start_at='router', trace=True).add_states(
+    # ChoiceState('if', default='router')
+    #     .add_choice('event.path.strip("/") == "v1/models"', 'list-models'),
+    # TaskState('list-models', class_name='Getlist', next=''),
+    RouterState('router', routes=[m1, m2, m3], class_name=ModelRouter, class_params={}),
+    TaskState('xyz', class_name='TClass'),
 )
 
 p.default_resource = 'f1'
@@ -59,7 +46,8 @@ p.resources = {'f2': {'url': 'http://localhost:5000'}}
 print(p.to_yaml())
 p.start('f1', namespace=globals())
 
-e = Event('{"data": [5]}', path='/v1/models/m2')
-print(p.run(None, e))
+e = Event('{"data": [5]}', path='/v1/models')
+print('resp:', p.run(e))
+print(e._trace_log)
 
 save_graph(p, "js/data.json")
