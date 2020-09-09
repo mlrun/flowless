@@ -33,10 +33,7 @@ m1 = TaskState('m1', class_name='MClass', class_params={'z': 100})
 m2 = TaskState('m2', class_name='MClass', class_params={'z': 200})
 m3 = TaskState('m3', class_name='MClass', class_params={'z': 300})#, resource='f2')
 
-p = FlowRoot('root', start_at='router', trace=True).add_states(
-    # ChoiceState('if', default='router')
-    #     .add_choice('event.path.strip("/") == "v1/models"', 'list-models'),
-    # TaskState('list-models', class_name='Getlist', next=''),
+p = FlowRoot('root', start_at='router', trace=2).add_states(
     RouterState('router', routes=[m1, m2, m3], class_name=ModelRouter, class_params={}),
     TaskState('xyz', class_name='TClass'),
 )
@@ -44,7 +41,7 @@ p = FlowRoot('root', start_at='router', trace=True).add_states(
 p.default_resource = 'f1'
 p.resources = {'f2': {'url': 'http://localhost:5000'}}
 print(p.to_yaml())
-p.start('f1', namespace=globals())
+p.init('f1', namespace=globals())
 
 e = Event('{"data": [5]}', path='/v1/models')
 print('resp:', p.run(e))

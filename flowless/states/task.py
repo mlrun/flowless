@@ -7,10 +7,10 @@ from flowless.transport import new_session
 class TaskState(BaseState):
     kind = 'task'
     _dict_fields = ['kind', 'name', 'class_name', 'class_params', 'handler',
-                    'next', 'resource', 'transport', 'subpath']
+                    'next', 'resource', 'transport', 'subpath', 'full_event']
 
     def __init__(self, name=None, class_name=None, class_params=None, handler=None,
-                 next=None, resource=None, transport=None, subpath=None):
+                 next=None, resource=None, transport=None, subpath=None, full_event=None):
         super().__init__(name, next)
         if callable(handler) and (class_name or class_params):
             raise ValueError('cannot specify function pointer (handler) and class name/params')
@@ -23,7 +23,7 @@ class TaskState(BaseState):
 
         self.class_params = class_params or {}
         self._object = None
-        self._full_event = False
+        self.full_event = None
         self.handler = handler
         self.resource = resource
         self.transport = transport
@@ -34,9 +34,6 @@ class TaskState(BaseState):
         if self._is_remote:
             self._fn = new_session(self, self._root.resources[self.resource]).do
             return
-
-        handler_name = self.handler.__name__ if callable(self.handler) else self.handler or ''
-        self._full_event = handler_name.endswith('_event')
 
         # link to function
         if self.handler and not self.class_name:
@@ -58,7 +55,7 @@ class TaskState(BaseState):
         handler = self.handler or 'do'
         if not self.handler and hasattr(self._object, 'do_event'):
             handler = 'do_event'
-            self._full_event = True
+            self.full_event = True
 
         if not hasattr(self._object, handler):
             raise ValueError(f'handler {handler} not found in class {self._object.__name__}')
@@ -74,18 +71,17 @@ class TaskState(BaseState):
             raise RuntimeError(f'state {self.name} run failed, function '
                                ' or remote session not initialized')
         try:
-            if self._full_event:
+            if self.full_event:
                 body = self._fn(event)
             else:
                 body = self._fn(event.body)
         except Exception as e:
-            context.logger.error(f'step {self.fullname} run failed, {e}')
-            if context.root.trace:
-                event.add_trace(event.id, self.fullname, 'fail', e)
-            raise RuntimeError(f'step {self.fullname} run failed, {e}')
+            fullname = self.fullname
+            context.logger.error(f'step {fullname} run failed, {e}')
+            event.add_trace(event.id, fullname, 'fail', e, verbosity=context.root.trace)
+            raise RuntimeError(f'step {fullname} run failed, {e}')
 
-        if context.root.trace:
-            event.add_trace(event.id, self.fullname, 'ok', body)
+        event.add_trace(event.id, self.fullname, 'ok', body, verbosity=context.root.trace)
         event.body = body
         if self.next and not getattr(event, 'terminated', None):
             next_obj = self._parent[self.next]

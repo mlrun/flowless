@@ -5,17 +5,21 @@ from .task import TaskState
 from .base import TaskList
 
 
+_fields = copy(TaskState._dict_fields)
+_fields.remove('full_event')
+
+
 class RouterState(TaskState):
     kind = 'router'
-    _dict_fields = TaskState._dict_fields + ['routes', 'hide_routes', 'weight_table']
+    _dict_fields = _fields + ['routes', 'hide_routes']
 
     def __init__(self, name=None, routes=None, class_name=None,
-                 class_params=None, resource=None, next=None, weight_table=None):
+                 class_params=None, resource=None, next=None):
         super().__init__(name, class_name, class_params, next=next, resource=resource)
         self._routes = None
         self.routes = routes
         self.hide_routes = None
-        self.weight_table = weight_table
+        self.full_event = True
 
     def get_children(self):
         return self._routes.values()

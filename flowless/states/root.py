@@ -5,7 +5,7 @@ import sys
 from .flow import SubflowState
 from mlrun.platforms.iguazio import OutputStream
 
-from flowless.common import TaskRunContext, Event
+from ..common import TaskRunContext, Event
 
 
 class _ServerContext:
@@ -25,7 +25,7 @@ class FlowRoot(SubflowState):
     _dict_fields = SubflowState._dict_fields[1:] + ['source', 'resources', 'default_resource', 'parameters', 'format']
 
     def __init__(self, name=None, states=None, start_at=None,
-                 parameters=None, default_resource=None, format=None, trace=None):
+                 parameters=None, default_resource=None, format=None, trace=0):
         super().__init__(name, states, start_at=start_at)
         self.source = None or {}
         self.resources = None or {}
@@ -36,7 +36,7 @@ class FlowRoot(SubflowState):
         self.format = format
         self.trace = trace
 
-    def start(self, resource, context=None, namespace=None):
+    def init(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()
         self.server_context = _ServerContext(self)
         setattr(self.context, 'root', self)
@@ -53,8 +53,7 @@ class FlowRoot(SubflowState):
         if not hasattr(event, 'id'):
             event = Event(body=event)
 
-        if self.trace:
-            event.add_trace(event.id, self.name, 'start', event.body)
+        event.add_trace(event.id, self.name, 'start', event.body, verbosity=self.trace)
         response = super().run(context, event, *args, **kwargs)
 
         if self.format == 'json' and not isinstance(response, (str, bytes)):

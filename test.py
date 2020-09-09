@@ -41,7 +41,7 @@ m2 = TaskState('m2', class_name='MClass', class_params={'z': 200})
 m3 = TaskState('m3', class_name='MClass', class_params={'z': 300})
 m4 = TaskState('m4', class_name='MClass', class_params={'z': 300})
 
-p = FlowRoot('root', start_at='ingest', trace=True).add_states(
+p = FlowRoot('root', start_at='ingest', trace=2).add_states(
     TaskState('ingest', class_name=T1Class),
     ChoiceState('if', default='data-prep')
         .add_choice('event.body==10', 'post-process')
@@ -54,16 +54,21 @@ p = FlowRoot('root', start_at='ingest', trace=True).add_states(
 
 
 print(p.to_yaml())
-p.default_resource = 'f1'
-p.resources = {'f2': {'url': 'http://localhost:5000'}}
 
-print(p.start('f1', namespace=globals()))
+x=p.to_dict()
+z=FlowRoot.from_dict(x)
+z.default_resource = 'f1'
+z.resources = {'f2': {'url': 'http://localhost:5000'}}
+
+print(z.init('f1', namespace=globals()))
+save_graph(z, "js/data.json")
+print(z.run(10))
 
 
-save_graph(p, "js/data.json")
 
-if __name__ == '__main__':
-    __spec__ = None
-    freeze_support()
-    print(p.run(10))
+# for process executor
+# if __name__ == '__main__':
+#     __spec__ = None
+#     freeze_support()
+#     print(p.run(10))
 

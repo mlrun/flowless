@@ -25,16 +25,30 @@ class Event(object):
     def __init__(self, body=None, content_type=None,
                  headers=None, method=None, path=None):
         self.id = 0
+        self.key = ''
         self.body = body
-        self.content_type = content_type
-        self.trigger = None
+        self.time = None
+
+        # optional
         self.headers = headers or {}
         self.method = method
         self.path = path or '/'
+        self.content_type = content_type
+        self.trigger = None
         self.end = False
-        self._trace_log = []
+        self._trace_log = None
 
-    def add_trace(self, id, step, status='ok', body=None, timestamp=None):
+    def __str__(self):
+        return f'Event(id={self.id}, body={self.body})'
+
+    def add_trace(self, id, step, status='ok', body=None, timestamp=None, verbosity=0):
+        if verbosity == 0:
+            return
+
+        if self._trace_log is None:
+            self._trace_log = []
         timestamp = timestamp or datetime.now()
         self._trace_log.append({'id': id, 'step': step, 'status': status,
                                 'body': str(body), 'time': timestamp})
+        if verbosity > 1:
+            print(f'Event: id={id}, step={step}, time={timestamp}, status={status}, body={body}')
