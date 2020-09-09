@@ -3,7 +3,7 @@ from pprint import pprint
 from mlrun.model import ModelObj
 
 import flowless
-from flowless.transport import new_session
+from ..transport import new_session
 
 
 class BaseState(ModelObj):

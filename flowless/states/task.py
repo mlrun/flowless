@@ -1,7 +1,7 @@
 import inspect
 
 from .base import BaseState
-from flowless.transport import new_session
+from ..transport import new_session
 
 
 class TaskState(BaseState):

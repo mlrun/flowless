@@ -22,12 +22,12 @@ class _ServerContext:
 
 class FlowRoot(SubflowState):
     kind = 'root'
-    _dict_fields = SubflowState._dict_fields[1:] + ['source', 'resources', 'default_resource', 'parameters', 'format']
+    _dict_fields = SubflowState._dict_fields[1:] + ['triggers', 'resources', 'default_resource', 'parameters', 'format']
 
-    def __init__(self, name=None, states=None, start_at=None,
+    def __init__(self, name=None, states=None, start_at=None, triggers=None,
                  parameters=None, default_resource=None, format=None, trace=0):
         super().__init__(name, states, start_at=start_at)
-        self.source = None or {}
+        self.triggers = None or {}
         self.resources = None or {}
         self.parameters = parameters or {}
         self.context = None
