@@ -43,7 +43,7 @@ p.resources = {'f2': {'url': 'http://localhost:5000'}}
 print(p.to_yaml())
 p.init('f1', namespace=globals())
 
-e = Event('{"data": [5]}', path='/v1/models')
+e = Event('{"data": [5]}', path='/v1/models/m2')
 print('resp:', p.run(e))
 print(e._trace_log)
 

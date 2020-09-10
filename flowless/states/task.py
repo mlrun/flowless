@@ -1,7 +1,35 @@
 import inspect
+from importlib import import_module
 
 from .base import BaseState
 from ..transport import new_session
+
+
+def create_class(pkg_class: str):
+    """Create a class from a package.module.class string
+
+    :param pkg_class:  full class location,
+                       e.g. "sklearn.model_selection.GroupKFold"
+    """
+    splits = pkg_class.split(".")
+    clfclass = splits[-1]
+    pkg_module = splits[:-1]
+    class_ = getattr(import_module(".".join(pkg_module)), clfclass)
+    return class_
+
+
+def create_function(pkg_func: list):
+    """Create a function from a package.module.function string
+
+    :param pkg_func:  full function location,
+                      e.g. "sklearn.feature_selection.f_classif"
+    """
+    splits = pkg_func.split(".")
+    pkg_module = ".".join(splits[:-1])
+    cb_fname = splits[-1]
+    pkg_module = __import__(pkg_module, fromlist=[cb_fname])
+    function_ = getattr(pkg_module, cb_fname)
+    return function_
 
 
 class TaskState(BaseState):
@@ -23,7 +51,7 @@ class TaskState(BaseState):
 
         self.class_params = class_params or {}
         self._object = None
-        self.full_event = None
+        self.full_event = full_event
         self.handler = handler
         self.resource = resource
         self.transport = transport
@@ -39,18 +67,32 @@ class TaskState(BaseState):
         if self.handler and not self.class_name:
             if callable(self.handler):
                 self._fn = self.handler
+                self.handler = self.handler.__name__
             elif self.handler in namespace:
                 self._fn = namespace[self.handler]
             else:
-                raise ValueError(f'state {self.name} init failed, function {self.handler} not found')
+                try:
+                    self._fn = create_function(self.handler)
+                except ImportError as e:
+                    raise ImportError(f'state {self.name} init failed, function {self.handler} not found')
+            context.logger.debug(f'init function {self.handler} in {self.name}')
             return
 
+        if not self.class_name:
+            raise ValueError('valid class_name and/or handler must be specified')
+
+        if not self._class_object:
+            if self.class_name in namespace:
+                self._class_object = namespace[self.class_name]
+            else:
+                try:
+                    self._class_object = create_class(self.class_name)
+                except ImportError as e:
+                    raise ImportError(f'state {self.name} init failed, class {self.class_name} not found')
+
         # init and link class/function
-        if not self._class_object and (not self.class_name or self.class_name not in namespace):
-            raise ValueError(f'state {self.name} init failed, class {self.class_name} not found')
         context.logger.debug(f'init class {self.class_name} in {self.name}')
-        self._object = init_class(self._class_object or namespace[self.class_name],
-                                  context, self, **self.class_params)
+        self._object = init_class(self._class_object, context, self, **self.class_params)
 
         handler = self.handler or 'do'
         if not self.handler and hasattr(self._object, 'do_event'):
@@ -72,21 +114,20 @@ class TaskState(BaseState):
                                ' or remote session not initialized')
         try:
             if self.full_event:
-                body = self._fn(event)
+                event = self._fn(event)
             else:
-                body = self._fn(event.body)
+                event.body = self._fn(event.body)
         except Exception as e:
             fullname = self.fullname
             context.logger.error(f'step {fullname} run failed, {e}')
             event.add_trace(event.id, fullname, 'fail', e, verbosity=context.root.trace)
             raise RuntimeError(f'step {fullname} run failed, {e}')
 
-        event.add_trace(event.id, self.fullname, 'ok', body, verbosity=context.root.trace)
-        event.body = body
+        event.add_trace(event.id, self.fullname, 'ok', event.body, verbosity=context.root.trace)
         if self.next and not getattr(event, 'terminated', None):
             next_obj = self._parent[self.next]
             return next_obj.run(context, event, *args, **kwargs)
-        return body
+        return event
 
 
 def init_class(object, context, state, **params):

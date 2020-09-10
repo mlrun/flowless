@@ -2,7 +2,7 @@ import concurrent
 from copy import copy
 
 from .task import TaskState
-from .base import TaskList
+from .base import StateList
 
 
 _fields = copy(TaskState._dict_fields)
@@ -16,35 +16,39 @@ class RouterState(TaskState):
     def __init__(self, name=None, routes=None, class_name=None,
                  class_params=None, resource=None, next=None):
         super().__init__(name, class_name, class_params, next=next, resource=resource)
-        self._routes = None
+        self._children = None
         self.routes = routes
         self.hide_routes = None
         self.full_event = True
 
     def get_children(self):
-        return self._routes.values()
+        return self._children.values()
 
     def keys(self):
-        return self._routes.keys()
+        return self._children.keys()
 
     def values(self):
-        return self._routes.values()
+        return self._children.values()
 
     @property
     def routes(self):
-        return self._routes.to_list()
+        return self._children.to_list()
 
     @routes.setter
     def routes(self, routes):
-        self._routes = TaskList.from_list(routes, self)
+        self._children = StateList.from_list(routes, self)
 
     def add_route(self, route):
-        route = self._routes.add(route)
+        route = self._children.add(route)
         route.set_parent(self)
         return route
 
     def __getitem__(self, name):
-        return self._routes[name]
+        return self._children[name]
+
+    def __setitem__(self, name, route):
+        route.set_parent(self)
+        self._children[name] = route
 
     def __iadd__(self, route):
         if isinstance(route, list):
@@ -76,7 +80,7 @@ class ParallelRouter:
             for future in concurrent.futures.as_completed(futures):
                 child = futures[future]
                 try:
-                    results.append(future.result())
+                    results.append(future.result().body)
                 except Exception as exc:
                     print('%r generated an exception: %s' % (child.fullname, exc))
         return results
@@ -90,9 +94,10 @@ class ParallelRouter:
                 results.append(resp)
         return results
 
-    def do_event(self, event, *args, **kwargs):
+    def do(self, event, *args, **kwargs):
         if self.executor:
             results = self._do_parallel(event, *args, **kwargs)
         else:
             results = self._do_sync(event, *args, **kwargs)
-        return results
+        event.body = results
+        return event

@@ -1,5 +1,6 @@
 import sys
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 
 from mlrun.utils import create_logger
 
@@ -24,7 +25,7 @@ class TaskRunContext:
 class Event(object):
     def __init__(self, body=None, content_type=None,
                  headers=None, method=None, path=None):
-        self.id = 0
+        self.id = uuid.uuid4().hex
         self.key = ''
         self.body = body
         self.time = None
@@ -47,7 +48,7 @@ class Event(object):
 
         if self._trace_log is None:
             self._trace_log = []
-        timestamp = timestamp or datetime.now()
+        timestamp = timestamp or datetime.now(timezone.utc)
         self._trace_log.append({'id': id, 'step': step, 'status': status,
                                 'body': str(body), 'time': timestamp})
         if verbosity > 1:

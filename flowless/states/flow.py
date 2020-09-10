@@ -1,4 +1,4 @@
-from .base import BaseState, TaskList
+from .base import BaseState, StateList
 
 
 class SubflowState(BaseState):
@@ -7,29 +7,29 @@ class SubflowState(BaseState):
 
     def __init__(self, name=None, states=None, next=None, start_at=None):
         super().__init__(name, next)
-        self._states = None
+        self._children = None
         self.states = states
         self.start_at = start_at
 
     def get_children(self):
-        return self._states.values()
+        return self._children.values()
 
     def keys(self):
-        return self._states.keys()
+        return self._children.keys()
 
     def values(self):
-        return self._states.values()
+        return self._children.values()
 
     @property
     def states(self):
-        return self._states.to_list()
+        return self._children.to_list()
 
     @states.setter
     def states(self, states):
-        self._states = TaskList.from_list(states, self)
+        self._children = StateList.from_list(states, self)
 
     def add_state(self, state, after=None):
-        state = self._states.add(state)
+        state = self._children.add(state)
         if after and after.next is None:
             state.after(after)
         state.set_parent(self)
@@ -44,7 +44,11 @@ class SubflowState(BaseState):
         return self
 
     def __getitem__(self, name):
-        return self._states[name]
+        return self._children[name]
+
+    def __setitem__(self, name, state):
+        state.set_parent(self)
+        self._children[name] = state
 
     def __iadd__(self, state):
         if isinstance(state, list):

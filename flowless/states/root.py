@@ -2,10 +2,12 @@ import json
 import socket
 import sys
 
+from .base import ObjDict, StateResource
 from .flow import SubflowState
 from mlrun.platforms.iguazio import OutputStream
 
 from ..common import TaskRunContext, Event
+from ..deploy import deploy_pipline
 
 
 class _ServerContext:
@@ -22,19 +24,35 @@ class _ServerContext:
 
 class FlowRoot(SubflowState):
     kind = 'root'
-    _dict_fields = SubflowState._dict_fields[1:] + ['triggers', 'resources', 'default_resource', 'parameters', 'format']
+    _dict_fields = SubflowState._dict_fields[1:] + ['triggers', 'resources', 'default_resource',
+                                                    'parameters', 'format', 'trace']
 
-    def __init__(self, name=None, states=None, start_at=None, triggers=None,
+    def __init__(self, name=None, states=None, start_at=None, triggers=None, resources=None,
                  parameters=None, default_resource=None, format=None, trace=0):
         super().__init__(name, states, start_at=start_at)
-        self.triggers = None or {}
-        self.resources = None or {}
+        self.triggers = triggers or {}
+        self._resources = None or {}
+        self.resources = resources
         self.parameters = parameters or {}
         self.context = None
         self.default_resource = default_resource
         self.server_context = None
         self.format = format
         self.trace = trace
+
+    @property
+    def resources(self):
+        return self._resources
+
+    @resources.setter
+    def resources(self, resources):
+        self._resources = ObjDict.from_dict(StateResource, resources)
+
+    def add_resource(self, name, kind, uri, spec=None, endpoint=None):
+        self._resources[name] = StateResource(kind, uri, spec, endpoint)
+
+    def deploy(self):
+        return deploy_pipline(self)
 
     def init(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()

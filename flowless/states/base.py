@@ -1,3 +1,4 @@
+import inspect
 from pprint import pprint
 
 from mlrun.model import ModelObj
@@ -87,43 +88,114 @@ class BaseState(ModelObj):
         return event.body
 
 
-class TaskList:
+class StateList:
     def __init__(self):
-        self._tasks = {}
+        self._children = {}
 
     def values(self):
-        return self._tasks.values()
+        return self._children.values()
 
     def keys(self):
-        return self._tasks.keys()
+        return self._children.keys()
 
     def __len__(self):
-        return len(self._tasks)
+        return len(self._children)
 
     def __getitem__(self, name):
-        return self._tasks[name]
+        return self._children[name]
 
     def to_list(self):
-        return [t.to_dict() for t in self._tasks.values()]
+        return [t.to_dict() for t in self._children.values()]
 
     @classmethod
-    def from_list(cls, tasks=None, parent=None):
-        if tasks is None:
+    def from_list(cls, states=None, parent=None):
+        if states is None:
             return cls()
-        if not isinstance(tasks, list):
-            raise ValueError('tasks must be a list')
+        if not isinstance(states, list):
+            raise ValueError('states must be a list')
 
         new_obj = cls()
-        if tasks:
-            for val in tasks:
+        if states:
+            for val in states:
                 val = new_obj.add(val)
                 val._parent = parent
         return new_obj
 
-    def add(self, task, name=None):
-        if isinstance(task, dict):
-            kind = task.get('kind', 'model')
-            task = flowless.task_kinds[kind].from_dict(task)
-        task.name = name or task.name
-        self._tasks[task.name] = task
-        return task
+    def add(self, state, name=None):
+        if isinstance(state, dict):
+            kind = state.get('kind', 'model')
+            state = flowless.task_kinds[kind].from_dict(state)
+        state.name = name or state.name
+        self._children[state.name] = state
+        return state
+
+
+class ObjDict:
+    def __init__(self, child_cls):
+        self._children = {}
+        self._child_cls = child_cls
+
+    def values(self):
+        return self._children.values()
+
+    def keys(self):
+        return self._children.keys()
+
+    def items(self):
+        return self._children.items()
+
+    def __len__(self):
+        return len(self._children)
+
+    def __getitem__(self, name):
+        return self._children[name]
+
+    def __setitem__(self, key, item):
+        self._children[key] = item
+
+    def to_dict(self):
+        return {k: v.to_dict() for k, v in self._children.items()}
+
+    @classmethod
+    def from_dict(cls, child_cls, children=None):
+        if children is None:
+            return cls(child_cls)
+        if not isinstance(children, dict):
+            raise ValueError('children must be a dict')
+
+        new_obj = cls(child_cls)
+        fields = child_cls._dict_fields
+        if not fields:
+            fields = list(inspect.signature(child_cls.__init__).parameters.keys())
+
+
+        if children:
+            for name, struct in children.items():
+                child_obj = child_cls()
+                if struct:
+                    for key, val in struct.items():
+                        if key in fields:
+                            setattr(child_obj, key, val)
+                new_obj._children[name] = child_obj
+        return new_obj
+
+    def set(self, child, name=None):
+        if isinstance(child, dict):
+            child = self._child_cls.from_dict(child)
+        self._children[name] = child
+        return child
+
+
+class StateResource(ModelObj):
+    _dict_fields = ['kind', 'url', 'spec', 'endpoint']
+
+    def __init__(self, kind=None, uri=None, spec=None, endpoint=None):
+        self.kind = kind
+        self.uri = uri
+        self.spec = spec
+        self.endpoint = endpoint
+        self.user = None
+        self.password = None
+        self.token = None
+        self.skip_deploy = None
+
