@@ -89,9 +89,10 @@ class ParallelRouter:
         results = []
         children = self.state.get_children()
         for child in children:
-            resp = child.run(self.context, event, *args, **kwargs)
+            new_event = copy(event)
+            resp = child.run(self.context, new_event, *args, **kwargs)
             if resp:
-                results.append(resp)
+                results.append(resp.body)
         return results
 
     def do(self, event, *args, **kwargs):

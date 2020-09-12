@@ -2,7 +2,7 @@ import json
 import socket
 import sys
 
-from .base import ObjDict, StateResource
+from .base import ObjDict, StateResource, INIT_LOCAL, INIT_REMOTE_API
 from .flow import SubflowState
 from mlrun.platforms.iguazio import OutputStream
 
@@ -25,7 +25,7 @@ class _ServerContext:
 class FlowRoot(SubflowState):
     kind = 'root'
     _dict_fields = SubflowState._dict_fields[1:] + ['triggers', 'resources', 'default_resource',
-                                                    'parameters', 'format', 'trace']
+                                                    'parameters', 'format', 'trace', 'streams_prefix']
 
     def __init__(self, name=None, states=None, start_at=None, triggers=None, resources=None,
                  parameters=None, default_resource=None, format=None, trace=0):
@@ -39,6 +39,7 @@ class FlowRoot(SubflowState):
         self.server_context = None
         self.format = format
         self.trace = trace
+        self.streams_prefix = None
 
     @property
     def resources(self):
@@ -51,14 +52,21 @@ class FlowRoot(SubflowState):
     def add_resource(self, name, kind, uri, spec=None, endpoint=None):
         self._resources[name] = StateResource(kind, uri, spec, endpoint)
 
+    def get_resource(self):
+        return self.default_resource
+
     def deploy(self):
+        return deploy_pipline(self)
+
+    def prepare(self, current_resource=None):
+        prep_tree(self, self, current_resource)
         return deploy_pipline(self)
 
     def init(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()
         self.server_context = _ServerContext(self)
         setattr(self.context, 'root', self)
-        self.init_objects(self.context, resource, namespace or globals(), self.default_resource)
+        self.init_objects(self.context, resource, namespace or globals())
 
     def add_root_params(self, params={}):
         for key, val in self.parameters.items():
@@ -80,3 +88,40 @@ class FlowRoot(SubflowState):
                 body=response, content_type='application/json', status_code=200
             )
         return response
+
+
+def prep_tree(root, state, current_resource):
+    for child in state.get_children():
+        child.set_parent(state, root)
+        child.validate()
+
+    if hasattr(state, 'start_at'):
+        start_obj = state[state.start_at]
+        prep_next(root, state, start_obj, current_resource)
+
+    for child in state.get_children():
+        if child.kind == 'router':
+            for route in child.values():
+                prep_next(root, child, route, current_resource)
+        for branch in child.next_branches():
+            if branch not in state.keys():
+                raise ValueError(f'next state ({branch} not found under {state.name}')
+            next_obj = state[branch]
+            child.before(next_obj)
+            prep_next(root, child, next_obj, current_resource)
+
+        prep_tree(root, child, current_resource)
+
+
+def prep_next(root, source_obj, next_obj, current_resource):
+    source_resource = source_obj.get_resource()
+    next_resource = next_obj.get_resource()
+    if source_resource != next_resource:
+        root.resources[next_resource].add_input(source_resource, source_obj.name)
+    if current_resource in [source_resource, next_resource]:
+        if current_resource == next_resource:
+            next_obj.set_object_type(INIT_LOCAL)
+        elif next_resource:
+            next_obj.set_object_type(INIT_REMOTE_API)
+
+    print('src n/r, next n/r:', source_obj.name, source_obj.get_resource(), next_obj.name, next_obj.get_resource())

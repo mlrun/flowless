@@ -28,7 +28,7 @@ def deploy_pipline(pipeline):
                         setattr(function.spec, attribute, value)
 
             print(name, resource)
-            print(function.to_yaml())
+            #print(function.to_yaml())
 
         elif kind == 'stream':
             import v3io

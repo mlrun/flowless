@@ -9,14 +9,15 @@ http_adapter = HTTPAdapter(
     max_retries=Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
 )
 
-def new_session(step, resource):
+
+def new_session(resource):
     if resource.kind == 'stream':
         return V3ioStreamTransport(resource)
     return HttpTransport(resource)
 
 
 class HttpTransport:
-    def __init__(self, step, resource):
+    def __init__(self, resource):
         self.url = resource.endpoint
         self.format = 'json'
         self.user = resource.user or ''
@@ -32,15 +33,17 @@ class HttpTransport:
             kwargs['auth'] = (self.user, self.password)
         elif self.token:
             kwargs['headers'] = {'Authorization': 'Bearer ' + self.token}
-        if event.method != 'GET':
+
+        method = event.method or 'POST'
+        if method != 'GET':
             if isinstance(event, (str, bytes)):
-                kwargs['data'] = event
+                kwargs['data'] = event.body
             else:
-                kwargs['json'] = event
+                kwargs['json'] = event.body
 
         url = self.url.strip('/') + event.path
         try:
-            resp = self._session.request(event.method, url, verify=False, **kwargs)
+            resp = self._session.request(method, url, verify=False, **kwargs)
         except OSError as err:
             raise OSError(f'error: cannot run function at url {url}, {err}')
         if not resp.ok:

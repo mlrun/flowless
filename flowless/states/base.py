@@ -7,6 +7,10 @@ import flowless
 from ..transport import new_session
 
 
+INIT_NONE = 0
+INIT_LOCAL = 1
+INIT_REMOTE_API = 2
+
 class BaseState(ModelObj):
     kind = 'base'
     _dict_fields = ['kind', 'name', 'next', 'end']
@@ -20,7 +24,8 @@ class BaseState(ModelObj):
         self.comment = None
         self.next = next
         self.end = None
-        self._is_remote = False
+        self._object_type = INIT_NONE
+        self.resource = None
 
     @property
     def parent_name(self):
@@ -28,11 +33,16 @@ class BaseState(ModelObj):
             return self._parent.fullname
         return ''
 
-    def set_parent(self, parent):
+    def set_parent(self, parent, root=None):
         self._parent = parent
+        if root:
+            self._root = root
 
     def get_children(self):
         return []
+
+    def get_resource(self):
+        return self.resource or self._parent.get_resource()
 
     def before(self, next):
         if hasattr(next, 'kind'):
@@ -45,31 +55,36 @@ class BaseState(ModelObj):
         other.next = self.name
         return self
 
+    def set_object_type(self, object_type):
+        if self._object_type and self._object_type != object_type:
+            raise ValueError('got different object types, possible error')
+        self._object_type = object_type
+
     def _init_object(self, context, namespace):
         pass
 
     def _post_init(self):
         pass
 
-    def init_objects(self, context, current_resource, namespace, parent_resource=None):
-        resource = getattr(self, 'resource', None)
-        self._root = getattr(context, 'root', None)
-        if resource and current_resource not in ['*', resource]:
-            self._is_remote = True
-            if self.resource not in self._root.resources:
-                raise RuntimeError(f'resource {self.resource} not defined in root')
-            self._fn = new_session(self, self._root.resources[self.resource]).do
+    def validate(self):
+        if self.resource and self.resource not in self._root.resources.keys():
+            raise RuntimeError(f'resource {self.resource} not defined in root')
 
-        resource = resource or parent_resource
-        if current_resource in ['*', resource]:
+    def next_branches(self):
+        if self.next:
+            return [self.next]
+        return []
+
+    def init_objects(self, context, current_resource, namespace):
+        self._root = getattr(context, 'root', None)
+        if self._object_type == INIT_LOCAL or current_resource == '*':
+            self._object_type = INIT_LOCAL
             self._init_object(context, namespace)
+        elif self._object_type == INIT_REMOTE_API:
+            self._fn = new_session(self._root.resources[self.get_resource()]).do
 
         for child in self.get_children():
-            if child.next:
-                if child.next not in self.keys():
-                    raise ValueError(f'next state ({child.next} not found in {self.fullname}')
-                child.before(self[child.next])
-            child.init_objects(context, current_resource, namespace, resource)
+            child.init_objects(context, current_resource, namespace)
 
         self._post_init()
 
@@ -198,4 +213,12 @@ class StateResource(ModelObj):
         self.password = None
         self.token = None
         self.skip_deploy = None
+
+        self._inputs = []
+
+    def add_input(self, resource, state):
+        link = ':'.join([resource or '', state])
+        if link not in self._inputs:
+            print('added link:', link)
+            self._inputs.append(link)
 

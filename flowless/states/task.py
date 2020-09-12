@@ -1,7 +1,7 @@
 import inspect
 from importlib import import_module
 
-from .base import BaseState
+from .base import BaseState, INIT_REMOTE_API
 from ..transport import new_session
 
 
@@ -58,11 +58,6 @@ class TaskState(BaseState):
         self.subpath = subpath
 
     def _init_object(self, context, namespace):
-        # init remote session (todo: only for next)
-        if self._is_remote:
-            self._fn = new_session(self, self._root.resources[self.resource]).do
-            return
-
         # link to function
         if self.handler and not self.class_name:
             if callable(self.handler):
@@ -108,12 +103,12 @@ class TaskState(BaseState):
             self._object.post_init()
 
     def run(self, context, event, *args, **kwargs):
-        context.logger.debug(f'running state {self.fullname}, remote: {self._is_remote}')
+        context.logger.debug(f'running state {self.fullname}, type: {self._object_type}')
         if not self._fn:
             raise RuntimeError(f'state {self.name} run failed, function '
                                ' or remote session not initialized')
         try:
-            if self.full_event:
+            if self.full_event or self._object_type == INIT_REMOTE_API:
                 event = self._fn(event)
             else:
                 event.body = self._fn(event.body)
