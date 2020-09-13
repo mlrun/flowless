@@ -4,7 +4,7 @@ import time
 from multiprocessing.dummy import freeze_support
 from pprint import pprint
 
-from flowless import TaskState, RouterState, ChoiceState, FlowRoot, save_graph
+from flowless import TaskState, RouterState, ChoiceState, FlowRoot, save_graph, QueueState
 from flowless.deploy import deploy_pipline
 from flowless.states.router import ParallelRouter
 
@@ -47,25 +47,26 @@ m3 = TaskState('m3', class_name='MClass', class_params={'z': 300})
 p = FlowRoot('root', start_at='ingest', trace=2).add_states(
     TaskState('ingest', class_name=T1Class),
     ChoiceState('if', default='data-prep')
-        .add_choice('event.body==10', 'post-process')
+        .add_choice('event.body==10', 'stream')
         .add_choice('event.body==7', 'update-db'),
     TaskState('data-prep', class_name='T1Class', resource='f2'),
     RouterState('router', routes=[m1, m2, m3], class_name=ParallelRouter, class_params={'executor': ''}),
-    TaskState('post-process', class_name='T2Class', handler='xo'),
+    QueueState('stream', outlets=['update-db'], resource='st'),
     TaskState('update-db', handler='json.dumps'),
 )
 
 p.default_resource = 'f1'
+p.add_resource('st', 'stream', '')
 p.add_resource('f1', 'function', '')
 p.add_resource('f2', 'function', 'hub://describe', endpoint= 'http://localhost:5000')
-#print(p.to_yaml())
-deploy_pipline(p)
+print(p.to_yaml())
 
 p.prepare('f1')
+deploy_pipline(p)
 
 print(p.init('f1', namespace=globals()))
 save_graph(p, "js/data.json")
-print(p.run(10))
+print(p.run(10, from_step='if'))
 
 
 

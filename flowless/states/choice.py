@@ -52,7 +52,7 @@ class ChoiceState(BaseState):
         for choice in self.choices:
             condition = choice.get('condition', '')
             value = eval(condition, {'event': event, 'context': context})
-            context.logger.debug(f'Choice event {event.body}, condition: {condition}, value: {value}')
+            context.logger.debug(f'Choice state, event={event.body}, condition: {condition}, value: {value}')
             if value:
                 return choice.get('next', '')
         return self.default

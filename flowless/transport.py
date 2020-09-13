@@ -10,16 +10,17 @@ http_adapter = HTTPAdapter(
 )
 
 
-def new_session(resource):
+def new_session(state, resource):
     if resource.kind == 'stream':
-        return V3ioStreamTransport(resource)
-    return HttpTransport(resource)
+        return V3ioStreamTransport(state, resource)
+    return HttpTransport(state, resource)
 
 
 class HttpTransport:
-    def __init__(self, resource):
+    def __init__(self, state, resource):
         self.url = resource.endpoint
         self.format = 'json'
+        self.state_name = state.name
         self.user = resource.user or ''
         self.password = resource.password or ''
         self.token = resource.token
@@ -28,12 +29,14 @@ class HttpTransport:
         self._session.mount('https://', http_adapter)
 
     def do(self, event):
+        headers = event.headers or {}
+        headers['next-state'] = self.state_name
         kwargs = {'headers': event.headers or {}}
         if self.user:
             kwargs['auth'] = (self.user, self.password)
         elif self.token:
-            kwargs['headers'] = {'Authorization': 'Bearer ' + self.token}
-
+            headers['Authorization'] = 'Bearer ' + self.token
+        kwargs['headers'] = headers
         method = event.method or 'POST'
         if method != 'GET':
             if isinstance(event, (str, bytes)):
@@ -57,9 +60,8 @@ class HttpTransport:
 
 
 class V3ioStreamTransport:
-    def __init__(self, resource):
+    def __init__(self, state, resource):
         import v3io
-
         self._v3io_client = v3io.dataplane.Client()
         self._container, self._stream_path = split_path(resource.uri)
 

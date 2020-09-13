@@ -1,11 +1,13 @@
 import json
 
-from flowless.states import SubflowState, ChoiceState, RouterState, TaskState, FlowRoot
+from flowless.states import (SubflowState, ChoiceState, RouterState,
+                             TaskState, FlowRoot, QueueState)
 
 task_kinds = {'task': TaskState,
               'router': RouterState,
               'subflow': SubflowState,
-              'choice': ChoiceState}
+              'choice': ChoiceState,
+              'queue': QueueState}
 
 default_shape = 'round-rectangle'
 
@@ -55,20 +57,14 @@ def build_graph(step, nodes=[], edges=[], parent=None):
             build_graph(route, nodes, edges, switch_name)
             edges += _new_edge(step.fullname, route.fullname)
 
-    elif hasattr(step, 'choices'):
+    elif step.kind in ['choice', 'queue']:
         nodes.append(_get_node_obj(name=step.fullname, text=step.name,
                                    shape=step._shape, parent=parent))
-        for choice in step.choices:
-            next = choice.get('next', '')
+        for next in step.next_branches():
             if next:
                 if parent:
                     next = '.'.join([parent, next])
                 edges += _new_edge(step.fullname, next)
-        if step.default:
-            next = step.default
-            if parent:
-                next = '.'.join([parent, next])
-            edges += _new_edge(step.fullname, next)
 
     else:
         edges += _new_edge(step.fullname, _next_fullname(step))

@@ -62,9 +62,9 @@
     },
     {
       "data": {
-        "id": "post-process",
-        "text": "post-process",
-        "shape": "round-rectangle"
+        "id": "stream",
+        "text": "stream",
+        "shape": "tag"
       }
     },
     {
@@ -85,19 +85,19 @@
     {
       "data": {
         "source": "if",
-        "target": "post-process"
+        "target": "data-prep"
+      }
+    },
+    {
+      "data": {
+        "source": "if",
+        "target": "stream"
       }
     },
     {
       "data": {
         "source": "if",
         "target": "update-db"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "data-prep"
       }
     },
     {
@@ -109,7 +109,7 @@
     {
       "data": {
         "source": "router$",
-        "target": "post-process"
+        "target": "stream"
       }
     },
     {
@@ -132,7 +132,7 @@
     },
     {
       "data": {
-        "source": "post-process",
+        "source": "stream",
         "target": "update-db"
       }
     }

@@ -81,7 +81,7 @@ class BaseState(ModelObj):
             self._object_type = INIT_LOCAL
             self._init_object(context, namespace)
         elif self._object_type == INIT_REMOTE_API:
-            self._fn = new_session(self._root.resources[self.get_resource()]).do
+            self._fn = new_session(self, self._root.resources[self.get_resource()]).do
 
         for child in self.get_children():
             child.init_objects(context, current_resource, namespace)
@@ -216,9 +216,12 @@ class StateResource(ModelObj):
 
         self._inputs = []
 
-    def add_input(self, resource, state):
-        link = ':'.join([resource or '', state])
+    def add_input(self, resource, from_step, to_step):
+        link = ':'.join([resource or '', from_step, to_step])
         if link not in self._inputs:
             print('added link:', link)
             self._inputs.append(link)
+
+    def get_inputs(self):
+        return [tuple(input.split(':')) for input in self._inputs]
 

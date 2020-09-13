@@ -59,8 +59,8 @@ class FlowRoot(SubflowState):
         return deploy_pipline(self)
 
     def prepare(self, current_resource=None):
+        self.validate()
         prep_tree(self, self, current_resource)
-        return deploy_pipline(self)
 
     def init(self, resource, context=None, namespace=None):
         self.context = context or TaskRunContext()
@@ -94,6 +94,8 @@ def prep_tree(root, state, current_resource):
     for child in state.get_children():
         child.set_parent(state, root)
         child.validate()
+        if child.get_resource() == current_resource:
+            child.set_object_type(INIT_LOCAL)
 
     if hasattr(state, 'start_at'):
         start_obj = state[state.start_at]
@@ -114,14 +116,11 @@ def prep_tree(root, state, current_resource):
 
 
 def prep_next(root, source_obj, next_obj, current_resource):
+    print('src n/r, next n/r:', source_obj.name, source_obj.get_resource(), next_obj.name, next_obj.get_resource())
     source_resource = source_obj.get_resource()
     next_resource = next_obj.get_resource()
     if source_resource != next_resource:
-        root.resources[next_resource].add_input(source_resource, source_obj.name)
-    if current_resource in [source_resource, next_resource]:
-        if current_resource == next_resource:
-            next_obj.set_object_type(INIT_LOCAL)
-        elif next_resource:
+        root.resources[next_resource].add_input(source_resource, source_obj.name, next_obj.name)
+        if next_resource and current_resource == source_resource:
             next_obj.set_object_type(INIT_REMOTE_API)
 
-    print('src n/r, next n/r:', source_obj.name, source_obj.get_resource(), next_obj.name, next_obj.get_resource())

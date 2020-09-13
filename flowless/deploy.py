@@ -3,8 +3,11 @@ from mlrun.platforms.iguazio import split_path
 
 
 def deploy_pipline(pipeline):
+    print('deploy:')
 
     for name, resource in pipeline.resources.items():
+
+        print(name, resource.get_inputs())
 
         if not resource.uri or resource.skip_deploy:
             continue

@@ -58,9 +58,10 @@ class SubflowState(BaseState):
         return self
 
     def run(self, context, event, *args, **kwargs):
-        if not self.start_at or self.start_at not in self.keys():
-            raise ValueError(f'start_at step {self.start_at} was not specified or doesnt exist in {self.name}')
-        next_obj = self[self.start_at]
+        from_step = kwargs.get('from_step', self.start_at)
+        if not from_step or from_step not in self.keys():
+            raise ValueError(f'start step {from_step} was not specified or doesnt exist in {self.name}')
+        next_obj = self[from_step]
         return next_obj.run(context, event, *args, **kwargs)
 
 
