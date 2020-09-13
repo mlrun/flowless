@@ -3,6 +3,8 @@ import json
 from flowless.states import (SubflowState, ChoiceState, RouterState,
                              TaskState, FlowRoot, QueueState)
 
+__version__ = "0.0.1"
+
 task_kinds = {'task': TaskState,
               'router': RouterState,
               'subflow': SubflowState,
