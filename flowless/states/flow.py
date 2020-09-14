@@ -60,9 +60,14 @@ class SubflowState(BaseState):
 
     def run(self, context, event, *args, **kwargs):
         from_state = kwargs.get('from_state', None) or self.from_state or self.start_at
-        if not from_state or from_state not in self.keys():
-            raise ValueError(f'start step {from_state} was not specified or doesnt exist in {self.name}')
-        next_obj = self[from_state]
+        if not from_state:
+            raise ValueError(f'start step {from_state} was not specified in {self.name}')
+        tree = from_state.split('.')
+        next_obj = self
+        for state in tree:
+            if state not in next_obj.keys():
+                raise ValueError(f'start step {from_state} doesnt exist in {self.name}')
+            next_obj = next_obj[state]
         return next_obj.run(context, event, *args, **kwargs)
 
 

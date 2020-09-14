@@ -25,8 +25,8 @@ p = FlowRoot('root', start_at='ingest', trace=2).add_states(
         .add_choice('event.body==7', 'update-db'),
     TaskState('data-prep', class_name='Test1Class', resource='f2'),
     RouterState('router', routes=[m1, m2, m3], class_name=ParallelRouter, class_params={'executor': ''}),
-    QueueState('stream', outlets=['update-db'], resource='st'),
-    TaskState('update-db', handler='json.dumps', resource='f2'),
+    QueueState('stream', outlets=['update-db'], resource=''),
+    TaskState('update-db', handler='json.dumps'),
 )
 
 p.default_resource = 'f1'

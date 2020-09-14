@@ -5,7 +5,7 @@ from flowless.demo_states import ModelClass, Test1Class, Test2Class
 from flowless.loader import init_pipeline_context, pipeline_handler
 from flowless.states.router import ParallelRouter
 
-os.environ['FROM_STATE'] = 'router'
+os.environ['FROM_STATE'] = 'router.m1'
 os.environ['RESOURCE_NAME'] = 'f1'
 
 ctx = TaskRunContext()

@@ -131,7 +131,6 @@ def prep_tree(root, state, current_resource):
 
 
 def prep_next(root, source_obj, next_obj, current_resource):
-    print('src n/r, next n/r:', source_obj.name, source_obj.get_resource(), next_obj.name, next_obj.get_resource())
     source_resource = source_obj.get_resource()
     next_resource = next_obj.get_resource()
     if source_resource != next_resource:
