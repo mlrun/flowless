@@ -2,8 +2,8 @@
   "nodes": [
     {
       "data": {
-        "id": "ingest",
-        "text": "ingest",
+        "id": "convert",
+        "text": "convert",
         "shape": "round-rectangle"
       }
     },
@@ -16,8 +16,8 @@
     },
     {
       "data": {
-        "id": "data-prep",
-        "text": "data-prep",
+        "id": "fail",
+        "text": "fail",
         "shape": "round-rectangle"
       }
     },
@@ -69,8 +69,15 @@
     },
     {
       "data": {
-        "id": "update-db",
-        "text": "update-db",
+        "id": "process-stream",
+        "text": "process-stream",
+        "shape": "round-rectangle"
+      }
+    },
+    {
+      "data": {
+        "id": "to-json",
+        "text": "to-json",
         "shape": "round-rectangle"
       }
     }
@@ -78,14 +85,14 @@
   "edges": [
     {
       "data": {
-        "source": "ingest",
+        "source": "convert",
         "target": "if"
       }
     },
     {
       "data": {
         "source": "if",
-        "target": "data-prep"
+        "target": "fail"
       }
     },
     {
@@ -97,19 +104,13 @@
     {
       "data": {
         "source": "if",
-        "target": "update-db"
-      }
-    },
-    {
-      "data": {
-        "source": "data-prep",
         "target": "router"
       }
     },
     {
       "data": {
         "source": "router$",
-        "target": "stream"
+        "target": "to-json"
       }
     },
     {
@@ -133,7 +134,7 @@
     {
       "data": {
         "source": "stream",
-        "target": "update-db"
+        "target": "process-stream"
       }
     }
   ]

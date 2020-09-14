@@ -3,6 +3,8 @@ import os
 from mlrun import import_function
 from mlrun.platforms.iguazio import split_path, mount_v3io
 
+from .common import stream_uri
+
 
 def deploy_pipline(pipeline):
     print('deploy:')
@@ -11,12 +13,14 @@ def deploy_pipline(pipeline):
 
         print(name, resource.get_inputs())
 
-        if not resource.uri or resource.skip_deploy:
+        if resource.skip_deploy:
             continue
 
         kind = resource.kind
 
         if kind == 'function':
+            if not resource.uri:
+                continue
             function = import_function(url=resource.uri)
             function.metadata.project = pipeline.project
             function.metadata.name = name
@@ -56,6 +60,7 @@ def deploy_pipline(pipeline):
 
             v3io_client = v3io.dataplane.Client()
             container, stream_path = split_path(stream_uri(pipeline, resource.uri, name))
+            print(f'stream path: {container}{stream_path}')
             response = v3io_client.create_stream(
                 container=container,
                 path=stream_path,
@@ -63,16 +68,9 @@ def deploy_pipline(pipeline):
                 retention_period_hours=resource.spec.get('retention_hours', 24),
                 raise_for_status=v3io.dataplane.RaiseForStatus.never,
             )
+            print(response.status_code, response.body)
             if not (response.status_code == 400 and "ResourceInUse" in str(response.body)):
                 response.raise_for_status([409, 204])
-
-
-def stream_uri(pipeline, uri, name):
-    if uri:
-        return uri
-    if not pipeline.streams_path:
-        raise ValueError('stream uri or pipeline.streams_path must be defined')
-    return '/'.join([pipeline.streams_path.strip('/'), name])
 
 
 def add_stream_trigger(fn, path, web_api=None, consumer_group='', max_workers=4):

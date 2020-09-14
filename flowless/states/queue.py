@@ -1,5 +1,5 @@
 from copy import copy
-from .base import BaseState
+from .base import BaseState, INIT_REMOTE_API
 
 
 class QueueState(BaseState):
@@ -43,6 +43,9 @@ class QueueState(BaseState):
     def run(self, context, event, *args, **kwargs):
         resp = None
         context.logger.debug(f'Queue state {self.name}, event={event.body}')
+        if self._object_type == INIT_REMOTE_API:
+            return self._fn(event)
+
         for next in self.outlets:
             new_event = copy(event)
             next_obj = self._parent[next]

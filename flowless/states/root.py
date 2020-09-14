@@ -134,7 +134,7 @@ def prep_next(root, source_obj, next_obj, current_resource):
     source_resource = source_obj.get_resource()
     next_resource = next_obj.get_resource()
     if source_resource != next_resource:
-        root.resources[next_resource].add_input(source_resource, source_obj.name, next_obj.name)
+        root.resources[next_resource].add_input(source_resource, source_obj.name, next_obj.fullname)
         if next_resource and current_resource == source_resource:
             next_obj.set_object_type(INIT_REMOTE_API)
 

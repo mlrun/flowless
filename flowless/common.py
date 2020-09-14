@@ -59,3 +59,11 @@ class Event(object):
                                 'body': str(body), 'time': timestamp})
         if verbosity > 1:
             print(f'Event: id={id}, step={step}, time={timestamp}, status={status}, body={body}')
+
+
+def stream_uri(pipeline, uri, name):
+    if uri:
+        return uri
+    if not pipeline.streams_path:
+        raise ValueError('stream uri or pipeline.streams_path must be defined')
+    return '/'.join([pipeline.streams_path.strip('/'), name])

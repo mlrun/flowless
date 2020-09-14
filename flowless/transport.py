@@ -5,6 +5,8 @@ from mlrun.platforms.iguazio import split_path
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from flowless.common import stream_uri
+
 http_adapter = HTTPAdapter(
     max_retries=Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
 )
@@ -69,7 +71,8 @@ class V3ioStreamTransport:
     def __init__(self, state, resource):
         import v3io
         self._v3io_client = v3io.dataplane.Client()
-        self._container, self._stream_path = split_path(resource.uri)
+        uri = stream_uri(state._root, resource.uri, state.resource)
+        self._container, self._stream_path = split_path(uri)
 
     def do(self, event):
         data = event.body
@@ -81,4 +84,5 @@ class V3ioStreamTransport:
         self._v3io_client.put_records(
             container=self._container, path=self._stream_path, records=records
         )
-        return None
+        event.body = None
+        return event

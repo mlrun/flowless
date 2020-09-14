@@ -207,7 +207,7 @@ class StateResource(ModelObj):
     def __init__(self, kind=None, uri=None, spec=None, endpoint=None):
         self.kind = kind
         self.uri = uri
-        self.spec = spec
+        self.spec = spec or {}
         self.endpoint = endpoint
         self.user = None
         self.password = None
