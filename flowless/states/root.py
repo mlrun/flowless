@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import sys
 
@@ -24,12 +25,13 @@ class _ServerContext:
 
 class FlowRoot(SubflowState):
     kind = 'root'
-    _dict_fields = SubflowState._dict_fields[1:] + ['triggers', 'resources', 'default_resource',
-                                                    'parameters', 'format', 'trace', 'streams_prefix']
+    _dict_fields = SubflowState._dict_fields[1:] + ['project', 'triggers', 'resources', 'default_resource',
+                                                    'parameters', 'format', 'trace', 'streams_path']
 
-    def __init__(self, name=None, states=None, start_at=None, triggers=None, resources=None,
+    def __init__(self, name=None, states=None, start_at=None, project=None, triggers=None, resources=None,
                  parameters=None, default_resource=None, format=None, trace=0):
         super().__init__(name, states, start_at=start_at)
+        self.project = project
         self.triggers = triggers or {}
         self._resources = None or {}
         self.resources = resources
@@ -37,9 +39,10 @@ class FlowRoot(SubflowState):
         self.context = None
         self.default_resource = default_resource
         self.server_context = None
-        self.format = format
+        self.format = format or 'json'
         self.trace = trace
-        self.streams_prefix = None
+        self.streams_path = None
+        self.in_nuclio = False
 
     @property
     def resources(self):
@@ -63,6 +66,7 @@ class FlowRoot(SubflowState):
         prep_tree(self, self, current_resource)
 
     def init(self, resource, context=None, namespace=None):
+        self.from_state = os.environ.get('FROM_STATE', None)
         self.context = context or TaskRunContext()
         self.server_context = _ServerContext(self)
         setattr(self.context, 'root', self)
@@ -81,13 +85,24 @@ class FlowRoot(SubflowState):
 
         event.add_trace(event.id, self.name, 'start', event.body, verbosity=self.trace)
         response = super().run(context, event, *args, **kwargs)
+        body = response.body
 
-        if self.format == 'json' and not isinstance(response, (str, bytes)):
-            response = json.dumps(response)
+        if self.in_nuclio and not isinstance(body, (str, bytes)):
+            body = json.dumps(body)
             return self.context.Response(
-                body=response, content_type='application/json', status_code=200
+                body=body, content_type='application/json',
+                status_code=200
             )
-        return response
+        return body
+
+    def export(self, target=""):
+        target = target or "pipeline.yaml"
+        if target.endswith('.yaml'):
+            data = self.to_yaml()
+        else:
+            data = self.to_json()
+        with open(target, 'w') as fp:
+            fp.write(data)
 
 
 def prep_tree(root, state, current_resource):

@@ -10,6 +10,7 @@ class SubflowState(BaseState):
         self._children = None
         self.states = states
         self.start_at = start_at
+        self.from_state = None
 
     def get_children(self):
         return self._children.values()
@@ -58,10 +59,10 @@ class SubflowState(BaseState):
         return self
 
     def run(self, context, event, *args, **kwargs):
-        from_step = kwargs.get('from_step', self.start_at)
-        if not from_step or from_step not in self.keys():
-            raise ValueError(f'start step {from_step} was not specified or doesnt exist in {self.name}')
-        next_obj = self[from_step]
+        from_state = kwargs.get('from_state', None) or self.from_state or self.start_at
+        if not from_state or from_state not in self.keys():
+            raise ValueError(f'start step {from_state} was not specified or doesnt exist in {self.name}')
+        next_obj = self[from_state]
         return next_obj.run(context, event, *args, **kwargs)
 
 

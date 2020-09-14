@@ -12,6 +12,12 @@ class Response(object):
         self.status_code = status_code
         self.content_type = content_type or 'text/plain'
 
+    def __repr__(self):
+        cls = self.__class__.__name__
+        items = self.__dict__.items()
+        args = ('{}={!r}'.format(key, value) for key, value in items)
+        return '{}({})'.format(cls, ', '.join(args))
+
 
 class TaskRunContext:
     def __init__(self):

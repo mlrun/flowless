@@ -1,2 +1,1 @@
-mlrun
-
+mlrun>=0.5.1

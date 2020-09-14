@@ -1,7 +1,8 @@
 import json
 
-from flowless.states import (SubflowState, ChoiceState, RouterState,
+from .states import (SubflowState, ChoiceState, RouterState,
                              TaskState, FlowRoot, QueueState)
+from .loader import load_pipeline
 
 __version__ = "0.0.1"
 

@@ -68,7 +68,7 @@ class TaskState(BaseState):
             else:
                 try:
                     self._fn = create_function(self.handler)
-                except ImportError as e:
+                except (ImportError, ValueError) as e:
                     raise ImportError(f'state {self.name} init failed, function {self.handler} not found')
             context.logger.debug(f'init function {self.handler} in {self.name}')
             return
@@ -82,7 +82,7 @@ class TaskState(BaseState):
             else:
                 try:
                     self._class_object = create_class(self.class_name)
-                except ImportError as e:
+                except (ImportError, ValueError) as e:
                     raise ImportError(f'state {self.name} init failed, class {self.class_name} not found')
 
         # init and link class/function

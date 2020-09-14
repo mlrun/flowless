@@ -18,7 +18,11 @@ def new_session(state, resource):
 
 class HttpTransport:
     def __init__(self, state, resource):
+        self.resource = resource
         self.url = resource.endpoint
+        self.func_name = f'nuclio-{state._root.project}-{state.get_resource()}'
+        if not self.url:
+            self.url = f'http://{self.func_name}:8080'
         self.format = 'json'
         self.state_name = state.name
         self.user = resource.user or ''
@@ -31,6 +35,8 @@ class HttpTransport:
     def do(self, event):
         headers = event.headers or {}
         headers['next-state'] = self.state_name
+        headers['event-id'] = event.id
+        headers['X-Nuclio-Target'] = self.func_name
         kwargs = {'headers': event.headers or {}}
         if self.user:
             kwargs['auth'] = (self.user, self.password)
