@@ -2,27 +2,6 @@
   "nodes": [
     {
       "data": {
-        "id": "convert",
-        "text": "convert",
-        "shape": "round-rectangle"
-      }
-    },
-    {
-      "data": {
-        "id": "if",
-        "text": "if",
-        "shape": "diamond"
-      }
-    },
-    {
-      "data": {
-        "id": "fail",
-        "text": "fail",
-        "shape": "round-rectangle"
-      }
-    },
-    {
-      "data": {
         "id": "router$",
         "text": "router",
         "shape": "round-rectangle"
@@ -31,7 +10,7 @@
     {
       "data": {
         "id": "router",
-        "text": "ParallelRouter",
+        "text": "ModelRouter",
         "shape": "star",
         "parent": "router$"
       }
@@ -62,22 +41,8 @@
     },
     {
       "data": {
-        "id": "stream",
-        "text": "stream",
-        "shape": "tag"
-      }
-    },
-    {
-      "data": {
-        "id": "process-stream",
-        "text": "process-stream",
-        "shape": "round-rectangle"
-      }
-    },
-    {
-      "data": {
-        "id": "to-json",
-        "text": "to-json",
+        "id": "xyz",
+        "text": "xyz",
         "shape": "round-rectangle"
       }
     }
@@ -85,32 +50,8 @@
   "edges": [
     {
       "data": {
-        "source": "convert",
-        "target": "if"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "fail"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "stream"
-      }
-    },
-    {
-      "data": {
-        "source": "if",
-        "target": "router"
-      }
-    },
-    {
-      "data": {
         "source": "router$",
-        "target": "to-json"
+        "target": "xyz"
       }
     },
     {
@@ -129,12 +70,6 @@
       "data": {
         "source": "router",
         "target": "router.m3"
-      }
-    },
-    {
-      "data": {
-        "source": "stream",
-        "target": "process-stream"
       }
     }
   ]

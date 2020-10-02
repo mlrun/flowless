@@ -119,7 +119,8 @@ class TaskState(BaseState):
             raise RuntimeError(f'step {fullname} run failed, {e}')
 
         event.add_trace(event.id, self.fullname, 'ok', event.body, verbosity=context.root.trace)
-        if self.next and not getattr(event, 'terminated', None):
+        resp_status = getattr(event.body, 'status_code', 0)
+        if self.next and not getattr(event, 'terminated', None) and resp_status < 300:
             next_obj = self._parent[self.next]
             return next_obj.run(context, event, *args, **kwargs)
         return event

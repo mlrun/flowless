@@ -39,11 +39,20 @@ p = FlowRoot('root', start_at='router', trace=2).add_states(
 )
 
 p.default_resource = 'f1'
-p.resources = {'f2': {'url': 'http://localhost:5000'}}
+#p.resources = {'f2': {'url': 'http://localhost:5000'}}
 print(p.to_yaml())
+
+
+p.add_resource('f1', 'function', '')
+#p.add_resource('f2', 'function', 'hub://model_server', endpoint='http://localhost:5000')
+#print(pipe.to_yaml())
+
+# export and deploy
+p.prepare('f1')
+
 p.init('f1', namespace=globals())
 
-e = Event('{"data": [5]}', path='/v1/models/m2')
+e = Event('{"data": [5]}', path='/v2/models/m2/')
 print('resp:', p.run(e))
 print(e._trace_log)
 

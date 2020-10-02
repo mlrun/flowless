@@ -12,7 +12,8 @@ class ModelRouter:
     def __init__(self, context, state, **kwargs):
         self.context = context
         self.state = state
-        self.url_prefix = kwargs.get('url_prefix', '/v1/models')
+        self.url_prefix = kwargs.get('url_prefix', '/v2/models')
+        self.health_prefix = kwargs.get('health_prefix', '/v2/health')
 
     def parse_event(self, event):
         parsed_event = {'data': []}
@@ -37,7 +38,7 @@ class ModelRouter:
                 parsed_event['data'].append(sample)
                 parsed_event['content_type'] = event.content_type
             else:
-                raise Exception("Unrecognized request format: %s" % e)
+                raise ValueError("Unrecognized request format: %s" % e)
 
         return parsed_event
 
@@ -49,22 +50,26 @@ class ModelRouter:
         )
         self.context.logger.info(f'Loaded {list(keys)}')
 
-    def select_child(self, event, body):
-        urlpath = getattr(event, 'path', '')
-        subpath = model = ''
+    def select_child(self, event, body, urlpath):
+        subpath = None
+        model = ''
         if urlpath:
-            if not urlpath.startswith(self.url_prefix):
-                raise ValueError(f'illegal path prefix {urlpath}, must start with {self.url_prefix}')
+            subpath = ''
             urlpath = urlpath[len(self.url_prefix):].strip('/')
             if not urlpath:
                 return None, ''
             segments = urlpath.split('/')
             model = segments[0]
+            if len(segments) > 2 and segments[1] == 'versions':
+                model = model + ':' + segments[2]
+                segments = segments[2:]
             if len(segments) > 1:
                 subpath = '/'.join(segments[1:])
 
         model = model or body.get('model', list(self.state.keys())[0])
         subpath = body.get('operation', subpath)
+        if subpath is None:
+            subpath = 'infer'
 
         if model not in self.state.keys():
             models = '| '.join(self.state.keys())
@@ -72,19 +77,35 @@ class ModelRouter:
 
         return self.state[model], subpath
 
+    def get_metadata(self):
+        return {"name": self.__class__.__name__,
+                "version": 'v2',
+                "extensions": []}
+
     def do_event(self, event, *args, **kwargs):
         body = self.parse_event(event)
+        urlpath = getattr(event, 'path', '')
 
-        child, subpath = self.select_child(event, body)
+        if urlpath == '/' or urlpath.startswith(self.health_prefix):
+            setattr(event, 'terminated', True)
+            event.body = self.get_metadata()
+            return event
+
+        if urlpath and not urlpath.startswith(self.url_prefix):
+            raise ValueError(f'illegal path prefix {urlpath}, must start with {self.url_prefix}')
+
+        child, subpath = self.select_child(event, body, urlpath)
         if not child:
             setattr(event, 'terminated', True)
-            return {'models': list(self.state.keys())}
+            event.body = {'models': list(self.state.keys())}
+            return event
 
-        self.context.logger.debug(f'router run child {child.fullname}, body={body}')
+        self.context.logger.debug(f'router run child {child.fullname}, body={body}, op={subpath}')
         event.body = body
         event.path = subpath
         response = child.run(self.context, event, subpath=subpath)
-        return response.body if response else None
+        event.body = response.body if response else None
+        return event
 
     def preprocess(self, request: Dict) -> Dict:
         return request
@@ -96,6 +117,9 @@ class ModelRouter:
 class NewModelServer:
     def __init__(self, context, name: str, model_dir: str = None, model=None, **kwargs):
         self.name = name
+        self.version = ''
+        if ':' in name:
+            self.name, self.version = name.split(':', 1)
         self.context = context
         self.ready = False
         self.model_dir = model_dir
@@ -135,15 +159,34 @@ class NewModelServer:
         start = datetime.now()
         request = self.preprocess(event.body)
         request = self.validate(request)
-        if event.path.strip('/') == 'explain':
-            response = self.explain(request)
-        else:
+
+        op = event.path.strip('/')
+        if op == 'predict' or op == 'infer':
             response = self.predict(request)
+        elif op == 'ready':  # get health
+            setattr(event, 'terminated', True)
+            if self.ready:
+                event.body = self.context.Response()
+            else:
+                event.body = self.context.Response(status_code=408, body=b'model not ready')
+            return event
+        elif op == '':
+            setattr(event, 'terminated', True)
+            event.body = {"name": self.name, "version": self.version,
+                          "inputs": [], "outputs": []}
+            return event
+        elif op == 'explain':
+                response = self.explain(request)
+        elif hasattr(self, 'op_' + op):
+            response = getattr(self, 'op_' + op)(request)
+        else:
+            raise ValueError(f'illegal model operation {op}')
+
         response = self.postprocess(response)
         if self._model_logger:
             self._model_logger.push(start, request, response)
-        return response
-
+        event.body = response
+        return event
 
     def validate(self, request):
         if "data" not in request:
@@ -183,6 +226,7 @@ class ModelLogPusher:
             'class': self.model.__class__.__name__,
             'worker': self.server_context.worker,
             'model': self.model.name,
+            'version': self.model.version,
             'host': self.server_context.hostname,
         }
         if getattr(self.model, 'labels', None):
